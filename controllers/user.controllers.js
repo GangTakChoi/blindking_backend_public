@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken')
 const userModel = require('../model/user_model')
+const userFriendsModel = require('../model/user_friends_model')
 const userFriendRequestModel = require('../model/user_friend_request_model')
 
 exports.addUser = async function (req, res, next) {
@@ -19,7 +20,10 @@ exports.createToken = async function (req, res, next) {
 
     if (userInfo !== null) {
       const token = jwt.sign(
-        {id: userInfo.id},
+        {
+          id: userInfo.id,
+          objectId: userInfo._id
+        },
         YOUR_SECRET_KEY,
         {expiresIn: '3h'}
       );
@@ -93,28 +97,73 @@ exports.getMachingPartnerDetail = async function (req, res, next) {
 
 exports.requestFriend = async function (req, res, next) {
   try {
-    let userId = res.locals.userId
-    // 친구 유저의 고유 아이디
-    let friend_Id = req.params.id
+    let myObjectId = res.locals.userObjectId
+    let friendObjectId = req.params.userObjectId
 
-    let friendInfo =  await userModel.findOneBy_Id(friend_Id)
-    if (friendInfo === null) {
-      res.status(400).json({ "errorMessage": "invalid friend user id"})
+    let friendUserInfo = await userModel.findOneBy_Id(friendObjectId)
+
+    // 친구 id 유효성 체크
+    if (friendUserInfo === null) {
+      res.status(400).json({
+        errorMessage: "invalid friend ID"
+      })
     }
 
-    let friendId = friendInfo.id
-
-    let payload = {
-      requestId: userId,
-      receiveId: friendId,
-      status: 'wait'
+    // 친구의 나에 대한 친구관계 조회
+    let filter = {
+      userObjectId: friendObjectId,
+      friendObjectId: myObjectId
     }
 
-    await userFriendRequestModel.create(payload)
-    res.status(200).json({"result": "success"})
+    let result = await userFriendsModel.findOne(filter)
+
+    if (result !== null) {
+      let status = result.status
+      if (status === "reject") {
+        await userFriendsModel.findOneAndUpdate(
+          {_id: result._id}, 
+          {status: "wait"}
+        )
+        res.status(200).json({result: "success"})
+      } else if (status === 'accept') {
+        res.status(200).json({result: "alreadyFriend"})
+      } else if (status === 'block') {
+        res.status(200).json({result: "blocked"})
+      }
+
+      return
+    } else {
+      // 나에 대한 친구 정보
+      let myAddInfo = {
+        userObjectId: myObjectId,
+        friendObjectId: friendObjectId,
+        status: "request"
+      }
+
+      await userFriendsModel.create(myAddInfo)
+
+      // 상대 친구의 나에 대한 정보
+      let friendAddInfo = {
+        userObjectId: friendObjectId,
+        friendObjectId: myObjectId,
+        status: "wait"
+      }
+
+      await userFriendsModel.create(friendAddInfo)
+
+      res.status(200).json({result: "success"})
+
+      return
+    }
+  
   } catch (err) {
-    res.status(500).json({"result": "fail", "errorMessage": err})
+    res.status(500).json({
+      errorMessage: "server error"
+    })
   }
+  
+  
+
 } 
 
 exports.getSendRequestFriendList = async function (req, res, next) {
@@ -127,9 +176,29 @@ exports.getSendRequestFriendList = async function (req, res, next) {
   }
 } 
 
-exports.getReceiveRequestFriendList = async function (req, res, next) {
+exports.getReceiveFriendRequestList = async function (req, res, next) {
+  let filter =  {
+    userObjectId: res.locals.userObjectId,
+    status: 'wait'
+  }
+
+  let friendRequestList = await userFriendsModel.find(filter).populate('friendObjectId').sort({"updatedAt": -1})
+
+  let friendList = []
+
+  if (friendRequestList !== null) {
+    friendRequestList.forEach((friendRequestInfo) => {
+      let friendInfo = {
+        objectId: friendRequestInfo.friendObjectId._id,
+        nickname: friendRequestInfo.friendObjectId.nickname
+      }
+  
+      friendList.push(friendInfo)
+    })
+  }
+
   res.status(200).json({
-    result: 'ok'
+    "result": friendList
   });
 } 
 

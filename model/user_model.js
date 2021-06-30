@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
 const friendSchema = Schema({
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
+  _id: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
   status: { type: String, required: true, enum: ['wait', 'reject', 'accept', 'block']} // 대기: wait, 거절: reject, 수락: accept, 차단: block
 })
 
@@ -45,10 +45,6 @@ usersSchema.statics.findAll = function (filter = {}) {
   // V4부터 exec() 필요없음
   return this.find(filter);
 };
-
-// usersSchema.statics.findOne = function (filter) {
-//   return this.findOne(filter);
-// };
 
 usersSchema.statics.findOneByIdPw = function (id, pw) {
   let filter = {

@@ -13,7 +13,7 @@ router.get('/me', verifyToken, userControllers.getUserInfo);
 // 친구 요청 보낸 목록
 router.get('/send-request-friends', verifyToken, userControllers.getSendRequestFriendList)
 // 친구 요청 받은 목록
-router.get('/receive-request-friends', verifyToken, userControllers.getReceiveRequestFriendList)
+router.get('/receive-request-friends', verifyToken, userControllers.getReceiveFriendRequestList)
 
 // 회원가입
 router.post('/', userControllers.addUser); 
@@ -22,7 +22,7 @@ router.post('/login', userControllers.createToken);
 // 자기소개 작성
 router.post('/self-introduction', verifyToken, userControllers.setSelfIntroduction);
 // 친구 요청
-router.post('/friend/:id', verifyToken, userControllers.requestFriend);
+router.post('/friend/:userObjectId', verifyToken, userControllers.requestFriend);
 
 
 module.exports = router;
