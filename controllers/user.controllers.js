@@ -129,6 +129,10 @@ exports.requestFriend = async function (req, res, next) {
         res.status(200).json({result: "alreadyFriend"})
       } else if (status === 'block') {
         res.status(200).json({result: "blocked"})
+      } else if (status === 'wait') {
+        res.status(200).json({result: "alreadyRequested"})
+      } else {
+        res.status(200).json({result: "unkown"})
       }
 
       return
@@ -161,9 +165,53 @@ exports.requestFriend = async function (req, res, next) {
       errorMessage: "server error"
     })
   }
-  
-  
+} 
 
+exports.acceptFriend = async function (req, res, next) {
+  try {
+    let myObjectId = res.locals.userObjectId
+    let friendObjectId = req.params.userObjectId
+
+    let friendUserInfo = await userModel.findOneBy_Id(friendObjectId)
+
+    // 친구 id 유효성 체크
+    if (friendUserInfo === null) {
+      res.status(400).json({
+        errorMessage: "invalid friend ID"
+      })
+    }
+
+    let filter = {
+      userObjectId: myObjectId,
+      friendObjectId: friendObjectId
+    }
+
+    let result = await userFriendsModel.findOne(filter)
+
+    // 친구 요청 상태인지 유효성 체크
+    if (result.status !== 'wait') {
+      console.log("invalid request (status is not 'wait')")
+      res.status(400).json({"errorMessage":"invalid request"})
+      return
+    }
+    
+    // 친구 승인 상태로 수정
+    await userFriendsModel.findOneAndUpdate(
+      {_id: result._id}, 
+      {status: "accept"}
+    )
+    
+    // 친구 승인 상태로 수정
+    await userFriendsModel.findOneAndUpdate(
+      {userObjectId: friendObjectId, friendObjectId: myObjectId}, 
+      {status: "accept"}
+    )
+
+    res.status(200).json({"result": "success"})
+  } catch (err) {
+    console.log(err)
+    res.status(500).json({"errorMessage": "server error"})
+  }
 } 
 
 exports.getSendRequestFriendList = async function (req, res, next) {
@@ -176,30 +224,74 @@ exports.getSendRequestFriendList = async function (req, res, next) {
   }
 } 
 
-exports.getReceiveFriendRequestList = async function (req, res, next) {
-  let filter =  {
-    userObjectId: res.locals.userObjectId,
-    status: 'wait'
-  }
-
-  let friendRequestList = await userFriendsModel.find(filter).populate('friendObjectId').sort({"updatedAt": -1})
-
-  let friendList = []
-
-  if (friendRequestList !== null) {
-    friendRequestList.forEach((friendRequestInfo) => {
-      let friendInfo = {
-        objectId: friendRequestInfo.friendObjectId._id,
-        nickname: friendRequestInfo.friendObjectId.nickname
-      }
+exports.getFriendInfoList = async function (req, res, next) {
+  try {
+    let filter =  {
+      userObjectId: res.locals.userObjectId,
+      status: 'wait'
+    }
   
-      friendList.push(friendInfo)
-    })
-  }
+    let friendRequestList = await userFriendsModel.find(filter).populate('friendObjectId').sort({"updatedAt": -1})
+  
+    let friendRequestInfoList = []
+  
+    if (friendRequestList !== null) {
+      friendRequestList.forEach((friendRequestInfo) => {
+        let friendInfo = {
+          objectId: friendRequestInfo.friendObjectId._id,
+          nickname: friendRequestInfo.friendObjectId.nickname
+        }
+    
+        friendRequestInfoList.push(friendInfo)
+      })
+    }
+  
+    filter.status =  'accept'
+  
+    let friendAcceptList = await userFriendsModel.find(filter).populate('friendObjectId').sort({"updatedAt": -1})
+  
+    let friendAcceptInfoList = []
+  
+    if (friendAcceptList !== null) {
+      friendAcceptList.forEach((friendAcceptInfo) => {
+        let friendInfo = {
+          objectId: friendAcceptInfo.friendObjectId._id,
+          nickname: friendAcceptInfo.friendObjectId.nickname
+        }
+    
+        friendAcceptInfoList.push(friendInfo)
+      })
+    }
+  
+    filter.status =  'block'
+  
+    let friendBlockList = await userFriendsModel.find(filter).populate('friendObjectId').sort({"updatedAt": -1})
+  
+    let friendBlockInfoList = []
+  
+    if (friendBlockList !== null) {
+      friendBlockList.forEach((friendBlockInfo) => {
+        let friendInfo = {
+          objectId: friendBlockInfo.friendObjectId._id,
+          nickname: friendBlockInfo.friendObjectId.nickname
+        }
+    
+        friendBlockInfoList.push(friendInfo)
+      })
+    }
 
-  res.status(200).json({
-    "result": friendList
-  });
+    res.status(200).json({
+      "friendRequestedList": friendRequestInfoList,
+      "friendAcceptList": friendAcceptInfoList,
+      "friendBlockList": friendBlockInfoList
+    });
+  } catch (err) {
+    res.status(500).json({
+      errorMessage: "server error"
+    });
+    console.log(err)
+  }
+  
 } 
 
 exports.verifyToken = async function (req, res, next) {
