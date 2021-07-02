@@ -179,6 +179,7 @@ exports.acceptFriend = async function (req, res, next) {
       res.status(400).json({
         errorMessage: "invalid friend ID"
       })
+      return
     }
 
     let filter = {
@@ -195,13 +196,13 @@ exports.acceptFriend = async function (req, res, next) {
       return
     }
     
-    // 친구 승인 상태로 수정
+    // 친구에 대한 상태로 승인으로 수정
     await userFriendsModel.findOneAndUpdate(
       {_id: result._id}, 
       {status: "accept"}
     )
     
-    // 친구 승인 상태로 수정
+    // 상대 친구의 나에 대한 상태 승인으로 수정
     await userFriendsModel.findOneAndUpdate(
       {userObjectId: friendObjectId, friendObjectId: myObjectId}, 
       {status: "accept"}
@@ -210,6 +211,86 @@ exports.acceptFriend = async function (req, res, next) {
     res.status(200).json({"result": "success"})
   } catch (err) {
     console.log(err)
+    res.status(500).json({"errorMessage": "server error"})
+  }
+} 
+
+exports.rejectFriend = async function (req, res, next) {
+  try {
+    let myObjectId = res.locals.userObjectId
+    let friendObjectId = req.params.userObjectId
+
+    let friendUserInfo = await userModel.findOneBy_Id(friendObjectId)
+
+    // 친구 id 유효성 체크
+    if (friendUserInfo === null) {
+      res.status(400).json({
+        errorMessage: "invalid friend ID"
+      })
+      return
+    }
+
+    let filter = {
+      userObjectId: myObjectId,
+      friendObjectId: friendObjectId
+    }
+
+    let result = await userFriendsModel.findOne(filter)
+
+    if (result === null) {
+      res.status(400).json({
+        errorMessage: "invalid request"
+      })
+      return
+    }
+
+    await userFriendsModel.findOneAndUpdate(
+      {_id: result._id}, 
+      {status: "reject"}
+    )
+
+    res.status(200).json({"result": "success"})
+  } catch (err) {
+    res.status(500).json({"errorMessage": "server error"})
+  }
+} 
+
+exports.blockFriend = async function (req, res, next) {
+  try {
+    let myObjectId = res.locals.userObjectId
+    let friendObjectId = req.params.userObjectId
+
+    let friendUserInfo = await userModel.findOneBy_Id(friendObjectId)
+
+    // 친구 id 유효성 체크
+    if (friendUserInfo === null) {
+      res.status(400).json({
+        errorMessage: "invalid friend ID"
+      })
+      return
+    }
+
+    let filter = {
+      userObjectId: myObjectId,
+      friendObjectId: friendObjectId
+    }
+
+    let result = await userFriendsModel.findOne(filter)
+
+    if (result === null) {
+      res.status(400).json({
+        errorMessage: "invalid request"
+      })
+      return
+    }
+
+    await userFriendsModel.findOneAndUpdate(
+      {_id: result._id}, 
+      {status: "block"}
+    )
+
+    res.status(200).json({"result": "success"})
+  } catch (err) {
     res.status(500).json({"errorMessage": "server error"})
   }
 } 

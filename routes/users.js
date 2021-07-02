@@ -25,6 +25,10 @@ router.post('/self-introduction', verifyToken, userControllers.setSelfIntroducti
 router.post('/friend/:userObjectId', verifyToken, userControllers.requestFriend);
 // 친구 수락
 router.post('/friend/:userObjectId/accept', verifyToken, userControllers.acceptFriend);
+// 친구 요청 거절
+router.post('/friend/:userObjectId/reject', verifyToken, userControllers.rejectFriend);
+// 친구 차단
+router.post('/friend/:userObjectId/block', verifyToken, userControllers.blockFriend);
 
 
 module.exports = router;
