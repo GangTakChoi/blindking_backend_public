@@ -5,7 +5,7 @@ const userFriendSchema = new mongoose.Schema({
   userObjectId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   friendObjectId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   status: {type: String, required: true, enum: ['wait', 'reject', 'accept', 'block', 'request']}, // 대기: wait, 거절: reject, 수락: accept, 차단: block, 요청: request
-  chattingRoomKey: {type: String, required: false, default: null}
+  chattingRoomId: {type: String, required: false, default: null}
 },
 {
   timestamps: true

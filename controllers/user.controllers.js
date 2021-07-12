@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken')
 const userModel = require('../model/user_model')
 const userFriendsModel = require('../model/user_friends_model')
+const chattingRoomModel = require('../model/chatting_room')
 
 exports.addUser = async function (req, res, next) {
   const userInfo = req.body
@@ -143,16 +144,26 @@ exports.requestFriend = async function (req, res, next) {
         if (status === 'block') {
           res.status(200).json({result: "myBlock"})
         } else {
+          // 채팅방 생성
+          let chattingRoom = await chattingRoomModel.create()
+          let chattingRoomId = chattingRoom._id
+
           // 친구에 대한 상태로 승인으로 수정
           await userFriendsModel.findOneAndUpdate(
             {_id: myRelationInfoObjectId}, 
-            {status: "accept"}
+            {
+              status: "accept",
+              chattingRoomId: chattingRoomId,
+            },
           )
           
           // 상대 친구의 나에 대한 상태 승인으로 수정
           await userFriendsModel.findOneAndUpdate(
             {_id: friendRelationInfoObjectId}, 
-            {status: "accept"}
+            {
+              status: "accept",
+              chattingRoomId: chattingRoomId,
+            }
           )
           res.status(200).json({result: "acceptFriend"})
         }
@@ -220,13 +231,17 @@ exports.acceptFriend = async function (req, res, next) {
       res.status(400).json({"errorMessage":"invalid request"})
       return
     }
+
+    // 채팅방 생성
+    let chattingRoom = await chattingRoomModel.create()
+    let chattingRoomId = chattingRoom._id
     
     // 친구에 대한 상태로 승인으로 수정
     await userFriendsModel.findOneAndUpdate(
       {_id: result._id}, 
       {
         status: "accept",
-        chattingRoomKey: result._id
+        chattingRoomId: chattingRoomId
       },
 
     )
@@ -236,7 +251,7 @@ exports.acceptFriend = async function (req, res, next) {
       {userObjectId: friendObjectId, friendObjectId: myObjectId}, 
       {
         status: "accept",
-        chattingRoomKey: result._id
+        chattingRoomId: chattingRoomId
       }
     )
 
