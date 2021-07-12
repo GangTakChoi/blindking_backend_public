@@ -1,7 +1,6 @@
 const jwt = require('jsonwebtoken')
 const userModel = require('../model/user_model')
 const userFriendsModel = require('../model/user_friends_model')
-const userFriendRequestModel = require('../model/user_friend_request_model')
 
 exports.addUser = async function (req, res, next) {
   const userInfo = req.body
@@ -119,6 +118,8 @@ exports.requestFriend = async function (req, res, next) {
 
     if (result !== null) {
       let status = result.status
+      let friendRelationInfoObjectId = result._id
+
       if (status === "reject") {
         await userFriendsModel.findOneAndUpdate(
           {_id: result._id}, 
@@ -131,8 +132,32 @@ exports.requestFriend = async function (req, res, next) {
         res.status(200).json({result: "blocked"})
       } else if (status === 'wait') {
         res.status(200).json({result: "alreadyRequested"})
+      } else if (status === 'request') {
+        filter.userObjectId = myObjectId
+        filter.friendObjectId = friendObjectId
+
+        result = await userFriendsModel.findOne(filter)
+        status = result.status
+        let myRelationInfoObjectId = result._id
+        
+        if (status === 'block') {
+          res.status(200).json({result: "myBlock"})
+        } else {
+          // 친구에 대한 상태로 승인으로 수정
+          await userFriendsModel.findOneAndUpdate(
+            {_id: myRelationInfoObjectId}, 
+            {status: "accept"}
+          )
+          
+          // 상대 친구의 나에 대한 상태 승인으로 수정
+          await userFriendsModel.findOneAndUpdate(
+            {_id: friendRelationInfoObjectId}, 
+            {status: "accept"}
+          )
+          res.status(200).json({result: "acceptFriend"})
+        }
       } else {
-        res.status(200).json({result: "unkown"})
+        res.status(400).json({result: "unkown"})
       }
 
       return
@@ -199,13 +224,20 @@ exports.acceptFriend = async function (req, res, next) {
     // 친구에 대한 상태로 승인으로 수정
     await userFriendsModel.findOneAndUpdate(
       {_id: result._id}, 
-      {status: "accept"}
+      {
+        status: "accept",
+        chattingRoomKey: result._id
+      },
+
     )
     
     // 상대 친구의 나에 대한 상태 승인으로 수정
     await userFriendsModel.findOneAndUpdate(
       {userObjectId: friendObjectId, friendObjectId: myObjectId}, 
-      {status: "accept"}
+      {
+        status: "accept",
+        chattingRoomKey: result._id
+      }
     )
 
     res.status(200).json({"result": "success"})
@@ -307,11 +339,13 @@ exports.getSendRequestFriendList = async function (req, res, next) {
 
 exports.getFriendInfoList = async function (req, res, next) {
   try {
+
+    // 친구 요청 대기 목록 조회
     let filter =  {
       userObjectId: res.locals.userObjectId,
       status: 'wait'
     }
-  
+    
     let friendRequestList = await userFriendsModel.find(filter).populate('friendObjectId').sort({"updatedAt": -1})
   
     let friendRequestInfoList = []
@@ -326,9 +360,10 @@ exports.getFriendInfoList = async function (req, res, next) {
         friendRequestInfoList.push(friendInfo)
       })
     }
-  
+    
+    // 친구 목록 조회
     filter.status =  'accept'
-  
+    
     let friendAcceptList = await userFriendsModel.find(filter).populate('friendObjectId').sort({"updatedAt": -1})
   
     let friendAcceptInfoList = []
@@ -344,8 +379,9 @@ exports.getFriendInfoList = async function (req, res, next) {
       })
     }
   
+    // 차단 목록 조회
     filter.status =  'block'
-  
+    
     let friendBlockList = await userFriendsModel.find(filter).populate('friendObjectId').sort({"updatedAt": -1})
   
     let friendBlockInfoList = []
@@ -373,7 +409,43 @@ exports.getFriendInfoList = async function (req, res, next) {
     console.log(err)
   }
   
-} 
+}
+
+exports.releaseBlockFriend = async function (req, res, next) {
+  try {
+    let myObjectId = res.locals.userObjectId
+    let friendObjectId = req.params.userObjectId
+
+    let filter = {
+      userObjectId: myObjectId,
+      friendObjectId: friendObjectId
+    }
+
+    let result = await userFriendsModel.findOne(filter)
+
+    if (result === null) {
+      res.status(400).json({
+        errorMessage: "invalid request"
+      })
+      return
+    }
+
+    await userFriendsModel.findOneAndUpdate(
+      {_id: result._id}, 
+      {status: "reject"}
+    )
+
+    res.status(200).json({
+      result: 'success'
+    });
+
+  } catch (err) {
+    res.status(500).json({
+      errorMessage: "server error"
+    });
+    console.log(err)
+  }
+}
 
 exports.verifyToken = async function (req, res, next) {
   res.status(200).json({

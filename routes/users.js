@@ -10,9 +10,7 @@ router.get('/maching-partners', verifyToken, userControllers.getMachingPartnerLi
 router.get('/maching-partners/:id', verifyToken, userControllers.getMachingPartnerDetail);
 // 유저 정보
 router.get('/me', verifyToken, userControllers.getUserInfo);
-// 친구 요청 보낸 목록
-router.get('/send-request-friends', verifyToken, userControllers.getSendRequestFriendList)
-// 친구 요청 받은 목록
+// 친구 목록
 router.get('/friends', verifyToken, userControllers.getFriendInfoList)
 
 // 회원가입
@@ -29,6 +27,8 @@ router.post('/friend/:userObjectId/accept', verifyToken, userControllers.acceptF
 router.post('/friend/:userObjectId/reject', verifyToken, userControllers.rejectFriend);
 // 친구 차단
 router.post('/friend/:userObjectId/block', verifyToken, userControllers.blockFriend);
+// 친구 차단 해제
+router.post('/friend/:userObjectId/release-block', verifyToken, userControllers.releaseBlockFriend);
 
 
 module.exports = router;
