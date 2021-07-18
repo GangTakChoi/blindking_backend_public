@@ -9,21 +9,59 @@ const YOUR_SECRET_KEY = process.env.SECRET_KEY;
 exports.createSocket = (server) => {
   
   const io = new Server(server);
-  io.on('connection', async (socket) => {
-    console.log('a user connected');
+
+  io.of('/chatting-alim').on('connection', async (socket) => {
+    console.log('[chatting-alim] 연결 성공 (id:' + socket.id + ')');
+
+    socket.on('disconnect', () => {
+      console.log('[chatting-alim] 연결 종료 (id:' + socket.id + ')');
+    });
+    socket.on('alimRoomOpen', (clientToken) => {
+      const decoded = jwt.verify(clientToken, YOUR_SECRET_KEY);
+      
+      if (!decoded) {
+        socket.disconnect()
+        return
+      }
+
+      socket.join(decoded.objectId)
+    });
+  })
+
+  io.of('/chatting').on('connection', async (socket) => {
+    console.log('[chatting] 연결 성공 (id:' + socket.id + ')');
     socket.emit('connectSuccess')
 
     socket.on('disconnect', () => {
-      console.log('user disconnected');
+      console.log('[chatting] 연결 종료 (id:' + socket.id + ')');
     });
 
-    let roomId = null
-    let myObjectId
-    let friendObjectId
+    let roomId = null // goInChattingRoom 에서 설정
+    let myObjectId = null // setData 에서 설정
+    let friendObjectId = null // setData 에서 설정
+    let myNickname = null // setData 에서 설정
 
+    socket.on('setData', async (data) => {
+      try {
+        const clientToken = data.myToken
+        const decoded = jwt.verify(clientToken, YOUR_SECRET_KEY);
+
+        myObjectId = decoded.objectId
+        myNickname = decoded.nickname
+        friendObjectId = data.friendObjectId
+      } catch (e) {
+        socket.disconnect()
+        console.log(e)
+      }
+    })
 
     socket.on('sendMessage', async (requestInfo) => {
       try {
+        if (myObjectId === null || friendObjectId === null || myNickname === null) {
+          socket.disconnect()
+          return
+        }
+
         if (roomId === null) socket.disconnect()
         
         let filter = {
@@ -47,25 +85,27 @@ exports.createSocket = (server) => {
 
         await chattingRoomModel.create(chattingRoomInfo)
 
-        io.to(roomId).emit('brodcastMessage', requestInfo); // 그룹 전체
+        io.of('/chatting').to(roomId).emit('brodcastMessage', requestInfo); // 그룹 전체
+
+        let alimInfo = {
+          nickname: myNickname,
+          message: requestInfo.msg,
+          friendObjectId: myObjectId,
+        }
+
+        io.of('/chatting-alim').to(friendObjectId).emit('messageAlim', alimInfo); // 그룹 전체
       } catch (e) {
+        socket.disconnect()
         console.log(e)
       }
     })
     
-    socket.on('goInChattingRoom', async (requestInfo) => {
+    socket.on('goInChattingRoom', async () => {
       try {
-        const clientToken = requestInfo.token
-        const decoded = jwt.verify(clientToken, YOUR_SECRET_KEY);
-
-
-        if (!decoded) {
+        if (friendObjectId === null || myObjectId === null) {
           socket.disconnect()
           return
         }
-
-        myObjectId = decoded.objectId;
-        friendObjectId = requestInfo.friendObjectId;
 
         let filter = {
           userObjectId: myObjectId,

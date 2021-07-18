@@ -9,6 +9,7 @@ const verifyToken = (req, res, next) => {
     if (decoded) {
       res.locals.userId = decoded.id;
       res.locals.userObjectId = decoded.objectId;
+      res.locals.userNickname = decoded.nickname;
       next();
     } else {
       res.status(401).json({ error: 'unauthorized' });

@@ -22,7 +22,8 @@ exports.createToken = async function (req, res, next) {
       const token = jwt.sign(
         {
           id: userInfo.id,
-          objectId: userInfo._id
+          objectId: userInfo._id,
+          nickname: userInfo.nickname,
         },
         YOUR_SECRET_KEY,
         {expiresIn: '3h'}
