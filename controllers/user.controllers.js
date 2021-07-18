@@ -119,7 +119,6 @@ exports.requestFriend = async function (req, res, next) {
 
     if (result !== null) {
       let status = result.status
-      let friendRelationInfoObjectId = result._id
 
       if (status === "reject") {
         await userFriendsModel.findOneAndUpdate(
@@ -139,32 +138,12 @@ exports.requestFriend = async function (req, res, next) {
 
         result = await userFriendsModel.findOne(filter)
         status = result.status
-        let myRelationInfoObjectId = result._id
         
         if (status === 'block') {
           res.status(200).json({result: "myBlock"})
         } else {
-          // 채팅방 생성
-          let chattingRoom = await chattingRoomModel.create()
-          let chattingRoomId = chattingRoom._id
+          establisFriendRelation(myObjectId, friendObjectId)
 
-          // 친구에 대한 상태로 승인으로 수정
-          await userFriendsModel.findOneAndUpdate(
-            {_id: myRelationInfoObjectId}, 
-            {
-              status: "accept",
-              chattingRoomId: chattingRoomId,
-            },
-          )
-          
-          // 상대 친구의 나에 대한 상태 승인으로 수정
-          await userFriendsModel.findOneAndUpdate(
-            {_id: friendRelationInfoObjectId}, 
-            {
-              status: "accept",
-              chattingRoomId: chattingRoomId,
-            }
-          )
           res.status(200).json({result: "acceptFriend"})
         }
       } else {
@@ -232,28 +211,35 @@ exports.acceptFriend = async function (req, res, next) {
       return
     }
 
-    // 채팅방 생성
-    let chattingRoom = await chattingRoomModel.create()
-    let chattingRoomId = chattingRoom._id
-    
-    // 친구에 대한 상태로 승인으로 수정
-    await userFriendsModel.findOneAndUpdate(
-      {_id: result._id}, 
-      {
-        status: "accept",
-        chattingRoomId: chattingRoomId
-      },
+    establisFriendRelation(myObjectId, friendObjectId)
 
-    )
+    // let readedMessageCountInfos = [
+    //   {userObjectId: myObjectId}, {userObjectId: friendObjectId}
+    // ]
+
+    // // 채팅방 생성
+    // let chattingRoom = await chattingRoomModel.create({
+    //   readedMessageCountInfos: readedMessageCountInfos
+    // })
+    // let chattingRoomId = chattingRoom._id
     
-    // 상대 친구의 나에 대한 상태 승인으로 수정
-    await userFriendsModel.findOneAndUpdate(
-      {userObjectId: friendObjectId, friendObjectId: myObjectId}, 
-      {
-        status: "accept",
-        chattingRoomId: chattingRoomId
-      }
-    )
+    // // 친구에 대한 상태로 승인으로 수정
+    // await userFriendsModel.findOneAndUpdate(
+    //   {_id: result._id}, 
+    //   {
+    //     status: "accept",
+    //     chattingRoomId: chattingRoomId
+    //   },
+    // )
+    
+    // // 상대 친구의 나에 대한 상태 승인으로 수정
+    // await userFriendsModel.findOneAndUpdate(
+    //   {userObjectId: friendObjectId, friendObjectId: myObjectId}, 
+    //   {
+    //     status: "accept",
+    //     chattingRoomId: chattingRoomId
+    //   }
+    // )
 
     res.status(200).json({"result": "success"})
   } catch (err) {
@@ -291,13 +277,18 @@ exports.rejectFriend = async function (req, res, next) {
       return
     }
 
-    await userFriendsModel.findOneAndUpdate(
-      {_id: result._id}, 
-      {status: "reject"}
-    )
+    result.status = "reject"
+
+    await userFriendsModel.create(result)
+
+    // await userFriendsModel.findOneAndUpdate(
+    //   {_id: result._id}, 
+    //   {status: "reject"}
+    // )
 
     res.status(200).json({"result": "success"})
   } catch (err) {
+    console.log(err)
     res.status(500).json({"errorMessage": "server error"})
   }
 } 
@@ -354,63 +345,45 @@ exports.getSendRequestFriendList = async function (req, res, next) {
 
 exports.getFriendInfoList = async function (req, res, next) {
   try {
+    let userObjectId = res.locals.userObjectId
 
     // 친구 요청 대기 목록 조회
     let filter =  {
-      userObjectId: res.locals.userObjectId,
-      status: 'wait'
+      userObjectId: userObjectId
     }
     
-    let friendRequestList = await userFriendsModel.find(filter).populate('friendObjectId').sort({"updatedAt": -1})
-  
+    let friendInfoList = await userFriendsModel.find(filter).populate('friendObjectId').populate('chattingRoomId').sort({"updatedAt": -1})
+
     let friendRequestInfoList = []
-  
-    if (friendRequestList !== null) {
-      friendRequestList.forEach((friendRequestInfo) => {
-        let friendInfo = {
-          objectId: friendRequestInfo.friendObjectId._id,
-          nickname: friendRequestInfo.friendObjectId.nickname
-        }
-    
-        friendRequestInfoList.push(friendInfo)
-      })
-    }
-    
-    // 친구 목록 조회
-    filter.status =  'accept'
-    
-    let friendAcceptList = await userFriendsModel.find(filter).populate('friendObjectId').sort({"updatedAt": -1})
-  
     let friendAcceptInfoList = []
-  
-    if (friendAcceptList !== null) {
-      friendAcceptList.forEach((friendAcceptInfo) => {
-        let friendInfo = {
-          objectId: friendAcceptInfo.friendObjectId._id,
-          nickname: friendAcceptInfo.friendObjectId.nickname
-        }
-    
-        friendAcceptInfoList.push(friendInfo)
-      })
-    }
-  
-    // 차단 목록 조회
-    filter.status =  'block'
-    
-    let friendBlockList = await userFriendsModel.find(filter).populate('friendObjectId').sort({"updatedAt": -1})
-  
     let friendBlockInfoList = []
-  
-    if (friendBlockList !== null) {
-      friendBlockList.forEach((friendBlockInfo) => {
-        let friendInfo = {
-          objectId: friendBlockInfo.friendObjectId._id,
-          nickname: friendBlockInfo.friendObjectId.nickname
-        }
-    
-        friendBlockInfoList.push(friendInfo)
-      })
-    }
+
+    friendInfoList.forEach((friendInfo) => {
+      let tempfriendInfo = {
+        objectId: friendInfo.friendObjectId._id,
+        nickname: friendInfo.friendObjectId.nickname
+      }
+
+      if (friendInfo.status === 'wait') {
+        friendRequestInfoList.push(tempfriendInfo)
+      }
+      if (friendInfo.status === 'block') {
+        friendBlockInfoList.push(tempfriendInfo)
+      }
+      if (friendInfo.status === 'accept') {
+        let readMessageCount = 0
+
+        friendInfo.chattingRoomId.readedMessageCountInfos.forEach((readedMessageCountInfo) => {
+          if (String(readedMessageCountInfo.userObjectId) === userObjectId) {
+            readMessageCount = readedMessageCountInfo.readedMessageCount
+          }
+        })
+
+        tempfriendInfo.unreadMessageCount = friendInfo.chattingRoomId.messageRecords.length - readMessageCount
+
+        friendAcceptInfoList.push(tempfriendInfo)
+      }
+    })
 
     res.status(200).json({
       "friendRequestedList": friendRequestInfoList,
@@ -466,4 +439,35 @@ exports.verifyToken = async function (req, res, next) {
   res.status(200).json({
     result: 'ok'
   });
-} 
+}
+
+async function establisFriendRelation (myObjectId, friendObjectId) {
+  let readedMessageCountInfos = [
+    {userObjectId: myObjectId}, {userObjectId: friendObjectId}
+  ]
+
+  // 채팅방 생성
+  let chattingRoom = await chattingRoomModel.create({
+    readedMessageCountInfos: readedMessageCountInfos
+  })
+
+  let chattingRoomId = chattingRoom._id
+  
+  // 친구에 대한 상태로 승인으로 수정
+  await userFriendsModel.findOneAndUpdate(
+    {userObjectId: myObjectId, friendObjectId: friendObjectId},
+    {
+      status: "accept",
+      chattingRoomId: chattingRoomId
+    },
+  )
+  
+  // 상대 친구의 나에 대한 상태 승인으로 수정
+  await userFriendsModel.findOneAndUpdate(
+    {userObjectId: friendObjectId, friendObjectId: myObjectId}, 
+    {
+      status: "accept",
+      chattingRoomId: chattingRoomId
+    }
+  )
+}

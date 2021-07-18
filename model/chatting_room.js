@@ -1,14 +1,20 @@
 const mongoose = require('mongoose');
 
+const readedMessageCountInfo = mongoose.Schema({
+  userObjectId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  readedMessageCount: { type: Number, default: 0, required: true },
+})
+
 const messageRecordSchema = mongoose.Schema({
   userObjectId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  content: { type: String, required: true }, // 대기: wait, 거절: reject, 수락: accept, 차단: block
+  content: { type: String, required: true },
   created: { type: Date, default: Date.now },
 })
 
 // 회원 친구 정보
 const chattingRoomSchema = new mongoose.Schema({
-  messageRecords: [messageRecordSchema]
+  messageRecords: [messageRecordSchema],
+  readedMessageCountInfos: [readedMessageCountInfo]
 },
 {
   timestamps: true
@@ -19,11 +25,11 @@ const chattingRoomSchema = new mongoose.Schema({
 );
 
 // Create new users document
-chattingRoomSchema.statics.create = function () {
+chattingRoomSchema.statics.create = function (payload) {
   // this === Model
-  const userFriend = new this();
+  const chattingRoom = new this(payload);
   // return Promise
-  return userFriend.save();
+  return chattingRoom.save();
 };
 
 // Create Model & Export

@@ -1,11 +1,6 @@
 const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
-const friendSchema = Schema({
-  _id: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
-  status: { type: String, required: true, enum: ['wait', 'reject', 'accept', 'block']} // 대기: wait, 거절: reject, 수락: accept, 차단: block
-})
-
 // Define Schemes
 const usersSchema = Schema({
   id: { type: String, required: true, unique: true },
@@ -21,13 +16,12 @@ const usersSchema = Schema({
   question5: { type: String, required: false, default: '' },
   question6: { type: String, required: false, default: '' },
   question7: { type: String, required: false, default: '' },
-  friends: [friendSchema],
 },
 {
   timestamps: true
 },
 {
-  collection: 'User'
+  collection: 'user'
 }
 );
 

@@ -11,6 +11,7 @@ exports.createSocket = (server) => {
   const io = new Server(server);
   io.on('connection', async (socket) => {
     console.log('a user connected');
+    socket.emit('connectSuccess')
 
     socket.on('disconnect', () => {
       console.log('user disconnected');
@@ -24,18 +25,27 @@ exports.createSocket = (server) => {
     socket.on('sendMessage', async (requestInfo) => {
       try {
         if (roomId === null) socket.disconnect()
+        
+        let filter = {
+          _id: roomId
+        }
 
-        await chattingRoomModel.findOneAndUpdate(
-          {_id: roomId}, 
-          {
-            $push: {
-              messageRecords: {
-                userObjectId: myObjectId,
-                content: requestInfo.msg,
-              }
-            }
+        let chattingRoomInfo = await chattingRoomModel.findOne(filter)
+
+        let messageInfo = {
+          userObjectId: myObjectId,
+          content: requestInfo.msg,
+        }
+
+        await chattingRoomInfo.messageRecords.push(messageInfo)
+
+        await chattingRoomInfo.readedMessageCountInfos.forEach((readedMessageCountInfo) => {
+          if (String(readedMessageCountInfo.userObjectId) === myObjectId) {
+            readedMessageCountInfo.readedMessageCount = chattingRoomInfo.messageRecords.length
           }
-        )
+        })
+
+        await chattingRoomModel.create(chattingRoomInfo)
 
         io.to(roomId).emit('brodcastMessage', requestInfo); // 그룹 전체
       } catch (e) {
@@ -70,19 +80,33 @@ exports.createSocket = (server) => {
         }
 
         roomId = result.chattingRoomId
+
+        if (roomId === null) {
+          socket.disconnect()
+          return
+        }
+
+        roomId = String(roomId)
+
         socket.join(roomId)
 
         filter = {
-          _id: new mongoose.mongo.ObjectId(roomId)
+          _id: roomId
         }
+        
         // 이전 대화내용 로드
         let chattingRoomInfo = await chattingRoomModel.findOne(filter).sort({ 'messageRecords.created': 1 })
-        // let chattingRoomInfo = await chattingRoomModel.aggregate(
-        //   [ { $match : filter }, { $unwind: "$messageRecords" }, { $sort: { "messageRecords.created": 1 }} ]
-        // );
         
         // 이전 대화내용 없는 경우 종료
         if (chattingRoomInfo === null || chattingRoomInfo.messageRecords.length < 0) return
+
+        await chattingRoomInfo.readedMessageCountInfos.forEach((readedMessageCountInfo) => {
+          if (String(readedMessageCountInfo.userObjectId) === myObjectId) {
+            readedMessageCountInfo.readedMessageCount = chattingRoomInfo.messageRecords.length
+          }
+        })
+
+        await chattingRoomModel.create(chattingRoomInfo)
 
         socket.emit("loadMessage", {myObjectId: myObjectId, messageRecords: chattingRoomInfo.messageRecords})
       } catch (e) {
