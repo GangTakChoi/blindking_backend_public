@@ -282,6 +282,14 @@ exports.rejectFriend = async function (req, res, next) {
 
     await userFriendsModel.create(result)
 
+    // 채팅방이 있는 경우 close 처리
+    if (result.chattingRoomId !== null) {
+      await chattingRoomModel.findOneAndUpdate(
+        {_id: result.chattingRoomId}, 
+        {isClose: true}
+      )
+    }
+
     // await userFriendsModel.findOneAndUpdate(
     //   {_id: result._id}, 
     //   {status: "reject"}
@@ -327,6 +335,14 @@ exports.blockFriend = async function (req, res, next) {
       {_id: result._id}, 
       {status: "block"}
     )
+    
+    // 채팅방이 있는 경우 close 처리
+    if (result.chattingRoomId !== null) {
+      await chattingRoomModel.findOneAndUpdate(
+        {_id: result.chattingRoomId}, 
+        {isClose: true}
+      )
+    }
 
     res.status(200).json({"result": "success"})
   } catch (err) {
@@ -428,6 +444,52 @@ exports.releaseBlockFriend = async function (req, res, next) {
       result: 'success'
     });
 
+  } catch (err) {
+    res.status(500).json({
+      errorMessage: "server error"
+    });
+    console.log(err)
+  }
+}
+
+exports.modifyFriendStatus = async function (req, res, next) {
+  try {
+    let status = req.body.status
+    let userObjectId = res.locals.userObjectId
+    let friendObjectId = req.params.userObjectId
+
+    // 친구 삭제 및 
+    if (status !== 'reject' && status !== 'block') {
+      res.status(400).json({
+        errorMessage: "invalid request"
+      })
+      return
+    }
+    
+    let filter = {
+      userObjectId: userObjectId,
+      friendObjectId: friendObjectId
+    }
+
+    let friendRelationInfo = await userFriendsModel.findOne(filter)
+
+    if (friendRelationInfo === null) {
+      res.status(400).json({
+        errorMessage: "invalid request"
+      })
+      return
+    }
+
+    await userFriendsModel.findOneAndUpdate(
+      {_id: friendRelationInfo._id}, 
+      {status: status}
+    )
+
+
+
+    res.status(200).json({
+      friendRelationInfo: friendRelationInfo
+    });
   } catch (err) {
     res.status(500).json({
       errorMessage: "server error"

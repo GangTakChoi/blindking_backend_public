@@ -36,7 +36,7 @@ exports.createSocket = (server) => {
       console.log('[chatting] 연결 종료 (id:' + socket.id + ')');
     });
 
-    let roomId = null // goInChattingRoom 에서 설정
+    let roomId = null // setData 에서 설정
     let myObjectId = null // setData 에서 설정
     let friendObjectId = null // setData 에서 설정
     let myNickname = null // setData 에서 설정
@@ -49,6 +49,29 @@ exports.createSocket = (server) => {
         myObjectId = decoded.objectId
         myNickname = decoded.nickname
         friendObjectId = data.friendObjectId
+
+        let filter = {
+          userObjectId: myObjectId,
+          friendObjectId: friendObjectId
+        }
+
+        let result = await userFriendsModel.findOne(filter)
+
+        if (result === null) {
+          socket.disconnect()
+          return
+        }
+
+        roomId = result.chattingRoomId
+
+        if (roomId === null) {
+          socket.disconnect()
+          return
+        }
+
+        roomId = String(roomId)
+
+        socket.emit("completeSetData")
       } catch (e) {
         socket.disconnect()
         console.log(e)
@@ -69,6 +92,11 @@ exports.createSocket = (server) => {
         }
 
         let chattingRoomInfo = await chattingRoomModel.findOne(filter)
+
+        if (chattingRoomInfo.isClose) {
+          socket.disconnect()
+          return
+        }
 
         let messageInfo = {
           userObjectId: myObjectId,
@@ -102,53 +130,43 @@ exports.createSocket = (server) => {
     
     socket.on('goInChattingRoom', async () => {
       try {
-        if (friendObjectId === null || myObjectId === null) {
+        if (myObjectId === null) {
           socket.disconnect()
           return
         }
-
-        let filter = {
-          userObjectId: myObjectId,
-          friendObjectId: friendObjectId
-        }
-
-        let result = await userFriendsModel.findOne(filter)
-
-        if (result === null) {
-          socket.disconnect()
-          return
-        }
-
-        roomId = result.chattingRoomId
-
-        if (roomId === null) {
-          socket.disconnect()
-          return
-        }
-
-        roomId = String(roomId)
 
         socket.join(roomId)
 
         filter = {
           _id: roomId
         }
-        
+
         // 이전 대화내용 로드
         let chattingRoomInfo = await chattingRoomModel.findOne(filter).sort({ 'messageRecords.created': 1 })
         
         // 이전 대화내용 없는 경우 종료
         if (chattingRoomInfo === null || chattingRoomInfo.messageRecords.length < 0) return
 
+        // 읽은 메세지 카운트
         await chattingRoomInfo.readedMessageCountInfos.forEach((readedMessageCountInfo) => {
           if (String(readedMessageCountInfo.userObjectId) === myObjectId) {
             readedMessageCountInfo.readedMessageCount = chattingRoomInfo.messageRecords.length
           }
         })
+        
 
+        // 읽은 메세지 수 저장
         await chattingRoomModel.create(chattingRoomInfo)
+        
+        socket.emit(
+          "loadMessage", 
+          {
+            myObjectId: myObjectId,
+            messageRecords: chattingRoomInfo.messageRecords,
+            isChattingRoomClose: chattingRoomInfo.isClose
+          }
+        )
 
-        socket.emit("loadMessage", {myObjectId: myObjectId, messageRecords: chattingRoomInfo.messageRecords})
       } catch (e) {
         socket.disconnect()
         console.log(e)

@@ -14,7 +14,8 @@ const messageRecordSchema = mongoose.Schema({
 // 회원 친구 정보
 const chattingRoomSchema = new mongoose.Schema({
   messageRecords: [messageRecordSchema],
-  readedMessageCountInfos: [readedMessageCountInfo]
+  readedMessageCountInfos: [readedMessageCountInfo],
+  isClose: {type: Boolean, default: false, required: true }, 
 },
 {
   timestamps: true
