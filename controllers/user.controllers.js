@@ -567,9 +567,7 @@ async function establisFriendRelation (myObjectId, friendObjectId, chattingRoomI
     
     // 상대 친구의 나에 대한 상태 승인으로 수정
     await userFriendsModel.findOneAndUpdate(
-      {userObjectId: friendObjectId, friendObjectId: myObjectId}, 
-    {userObjectId: friendObjectId, friendObjectId: myObjectId}, 
-      {userObjectId: friendObjectId, friendObjectId: myObjectId}, 
+      {userObjectId: friendObjectId, friendObjectId: myObjectId},
       {
         status: "accept",
         chattingRoomId: chattingRoomId
