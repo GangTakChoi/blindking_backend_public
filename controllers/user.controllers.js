@@ -128,7 +128,23 @@ exports.requestFriend = async function (req, res, next) {
         )
         res.status(200).json({result: "success"})
       } else if (status === 'accept') {
-        res.status(200).json({result: "alreadyFriend"})
+        filter.userObjectId = myObjectId
+        filter.friendObjectId = friendObjectId
+
+        result = await userFriendsModel.findOne(filter)
+
+        if (result.status === 'accept') {
+          // 이미 친구관계인 경우
+          res.status(200).json({result: "alreadyFriend"})
+        } else {
+          // 상대방은 accept 상태이지만 나는 아닌 경우
+
+          await establisFriendRelation(myObjectId, friendObjectId, result.chattingRoomId)
+
+          res.status(200).json({result: "establishFriend"})
+        }
+
+        
       } else if (status === 'block') {
         res.status(200).json({result: "blocked"})
       } else if (status === 'wait') {
@@ -143,7 +159,8 @@ exports.requestFriend = async function (req, res, next) {
         if (status === 'block') {
           res.status(200).json({result: "myBlock"})
         } else {
-          establisFriendRelation(myObjectId, friendObjectId)
+
+          await establisFriendRelation(myObjectId, friendObjectId, result.chattingRoomId)
 
           res.status(200).json({result: "acceptFriend"})
         }
@@ -177,6 +194,7 @@ exports.requestFriend = async function (req, res, next) {
     }
   
   } catch (err) {
+    console.log(err)
     res.status(500).json({
       errorMessage: "server error"
     })
@@ -212,7 +230,7 @@ exports.acceptFriend = async function (req, res, next) {
       return
     }
 
-    establisFriendRelation(myObjectId, friendObjectId)
+    await establisFriendRelation(myObjectId, friendObjectId, result.chattingRoomId)
 
     // let readedMessageCountInfos = [
     //   {userObjectId: myObjectId}, {userObjectId: friendObjectId}
@@ -504,33 +522,60 @@ exports.verifyToken = async function (req, res, next) {
   });
 }
 
-async function establisFriendRelation (myObjectId, friendObjectId) {
-  let readedMessageCountInfos = [
-    {userObjectId: myObjectId}, {userObjectId: friendObjectId}
-  ]
+async function establisFriendRelation (myObjectId, friendObjectId, chattingRoomId = null) {
 
-  // 채팅방 생성
-  let chattingRoom = await chattingRoomModel.create({
-    readedMessageCountInfos: readedMessageCountInfos
-  })
+  // 채팅룸이 존재하는 경우 
+  if (chattingRoomId !== null) {
+    // 친구에 대한 상태로 승인으로 수정
+    await userFriendsModel.findOneAndUpdate(
+      { userObjectId: myObjectId, friendObjectId: friendObjectId },
+      { status: "accept" },
+    )
+    
+    // 상대 친구의 나에 대한 상태 승인으로 수정
+    await userFriendsModel.findOneAndUpdate(
+      { userObjectId: friendObjectId, friendObjectId: myObjectId }, 
+      { status: "accept" }
+    )
 
-  let chattingRoomId = chattingRoom._id
+    await chattingRoomModel.findOneAndUpdate(
+      { _id: chattingRoomId },
+      { isClose: false }
+    )
+
+  // 채팅룸이 존재하지 않는 경우
+  } else {
+    let readedMessageCountInfos = [
+      {userObjectId: myObjectId}, {userObjectId: friendObjectId}
+    ]
   
-  // 친구에 대한 상태로 승인으로 수정
-  await userFriendsModel.findOneAndUpdate(
-    {userObjectId: myObjectId, friendObjectId: friendObjectId},
-    {
-      status: "accept",
-      chattingRoomId: chattingRoomId
-    },
-  )
+    // 채팅방 생성
+    let chattingRoom = await chattingRoomModel.create({
+      readedMessageCountInfos: readedMessageCountInfos
+    })
   
-  // 상대 친구의 나에 대한 상태 승인으로 수정
-  await userFriendsModel.findOneAndUpdate(
+    let chattingRoomId = chattingRoom._id
+    
+    // 친구에 대한 상태로 승인으로 수정
+    await userFriendsModel.findOneAndUpdate(
+      {userObjectId: myObjectId, friendObjectId: friendObjectId},
+      {
+        status: "accept",
+        chattingRoomId: chattingRoomId
+      },
+    )
+    
+    // 상대 친구의 나에 대한 상태 승인으로 수정
+    await userFriendsModel.findOneAndUpdate(
+      {userObjectId: friendObjectId, friendObjectId: myObjectId}, 
     {userObjectId: friendObjectId, friendObjectId: myObjectId}, 
-    {
-      status: "accept",
-      chattingRoomId: chattingRoomId
-    }
-  )
+      {userObjectId: friendObjectId, friendObjectId: myObjectId}, 
+      {
+        status: "accept",
+        chattingRoomId: chattingRoomId
+      }
+    )
+
+  }
+  
 }
