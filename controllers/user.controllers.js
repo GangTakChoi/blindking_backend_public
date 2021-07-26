@@ -537,7 +537,8 @@ async function establisFriendRelation (myObjectId, friendObjectId, chattingRoomI
       { userObjectId: friendObjectId, friendObjectId: myObjectId }, 
       { status: "accept" }
     )
-
+    
+    // 채팅방 오픈
     await chattingRoomModel.findOneAndUpdate(
       { _id: chattingRoomId },
       { isClose: false }

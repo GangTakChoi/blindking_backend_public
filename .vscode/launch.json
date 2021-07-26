@@ -1,0 +1,19 @@
+{
+  "configurations": [
+    {
+      "type": "aws-sam",
+      "request": "direct-invoke",
+      "name": "matchmaking_api:controllers/community.controllers.fileupload (nodejs10.x)",
+      "invokeTarget": {
+        "target": "code",
+        "projectRoot": "${workspaceFolder}/",
+        "lambdaHandler": "controllers/community.controllers.fileupload"
+      },
+      "lambda": {
+        "runtime": "nodejs10.x",
+        "payload": {},
+        "environmentVariables": {}
+      }
+    }
+  ]
+}
