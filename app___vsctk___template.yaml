@@ -1,0 +1,9 @@
+Resources:
+  matchmakingapi:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: controllers/community.controllers.fileupload
+      CodeUri: C:/Users/chlrk/Desktop/work/choikt's web site/matchmaking_api
+      Runtime: nodejs10.x
+      Environment:
+        Variables: {}

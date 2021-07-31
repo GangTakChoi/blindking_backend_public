@@ -2,12 +2,14 @@ const mongoose = require('mongoose');
 
 // 게시판
 const boardSchema = new mongoose.Schema({
-  title: { type: String, required: true },
+  writerUserId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  title: { type: String, index: true, required: true },
   content: { type: String, required: true },
   view: { type: Number, default: 0, required: true},
   like: { type: Number, default: 0, required: true},
-  isDelete: { type: Boolean, default: false, required: true },
-  isShow: {type: Boolean, default: true, required: true}
+  dislike: { type: Number, default: 0, required: true},
+  isDelete: { type: Boolean, index: true, default: false, required: true },
+  isShow: {type: Boolean, index: true, default: true, required: true},
 },
 {
   timestamps: true
