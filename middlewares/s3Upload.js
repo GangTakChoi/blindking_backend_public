@@ -1,10 +1,12 @@
+require('dotenv').config()
+
 const multer = require('multer')
 const multerS3 = require('multer-s3')
 const AWS = require('aws-sdk')
-const dotenv = require('dotenv')
+const jwt = require('jsonwebtoken');
+const YOUR_SECRET_KEY = process.env.SECRET_KEY;
 const fileLimitSizeMB = 1.5 // 파일 크기 제한 (단위: MB)
 
-dotenv.config()
 
 AWS.config.update({
   accessKeyId: process.env.AWS_S3_UPLOAD_ACCESS_KEY,
@@ -21,12 +23,34 @@ var upload = multer({
     contentType: multerS3.AUTO_CONTENT_TYPE, // 자동을 콘텐츠 타입 세팅
     acl: 'public-read', // 클라이언트에서 자유롭게 가용하기 위함
     key: (req, file, cb) => {
-      let filename = Date.now() + '.' + file.originalname
+      const clientToken = req.cookies.token;
+      const decoded = jwt.verify(clientToken, YOUR_SECRET_KEY);
+      
+      switch (file.mimetype) {
+				case 'image/jpeg':
+					mimeType = 'jpg';
+					break;
+				case 'image/png':
+					mimeType = 'png';
+					break;
+				case 'image/gif':
+					mimeType = 'gif';
+					break;
+				case 'image/bmp':
+					mimeType = 'bmp';
+					break;
+
+        // 이미지 파일이 아닌 경우
+				default:
+          cb(new Error('is not image file'))
+          return
+			}
+
+      let filename = decoded.nickname + '_' + Date.now() + '.' + mimeType
       cb(null, filename)
     },
-    limits: { fileSize: 1024 * 1024 * fileLimitSizeMB } // 최대 1.5MB
   }),
-
+  limits: { fileSize: 1024 * 1024 * fileLimitSizeMB } // 최대 1.5MB
 });
 
 module.exports = upload

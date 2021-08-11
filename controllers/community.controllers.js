@@ -91,17 +91,31 @@ exports.getBoardList = async (req, res, next) => {
   
 }
 
-exports.fileupload = async (req, res, next) => {
-  try {
+exports.fileupload = async function(req, res, nest) {
+  var fileUpload = require('../middlewares/s3Upload.js')
+  var imgUpload = fileUpload.single('upload')
+  const multer = require('multer')
+
+  imgUpload(req, res, function (err) {
+    if (err) {
+      let errorMessage = err.message
+
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        errorMessage = '파일 사이즈가 너무 큽니다. (1.5MB 제한)'
+      }
+
+      res.status(500).json({
+        "error": {
+          "message": errorMessage
+        }
+      });
+      return
+    }
+
     res.status(200).json({
       "url": req.file.location
     });
-  } catch (err) {
-    res.status(500).json({
-      result: 'server error'
-    });
-  }
-  
+  })
 }
 
 exports.writeBoardOfComment = async (req, res, next) => {

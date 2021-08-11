@@ -2,6 +2,9 @@ var express = require('express');
 var router = express.Router();
 
 var { verifyToken } = require('../middlewares/authorization')
+var { apiCommonLimiter } = require('../middlewares/apiRateLimit')
+
+router.use(apiCommonLimiter)
 
 /* GET home page. */
 router.get('/', function(req, res, next) {
