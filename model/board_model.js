@@ -8,6 +8,7 @@ const boardSchema = new mongoose.Schema({
   view: { type: Number, default: 0, required: true},
   like: { type: Number, default: 0, required: true},
   dislike: { type: Number, default: 0, required: true},
+  commentCount: { type: Number, default: 0, required: true },
   isDelete: { type: Boolean, index: true, default: false, required: true },
   isShow: {type: Boolean, index: true, default: true, required: true},
 },
@@ -18,6 +19,8 @@ const boardSchema = new mongoose.Schema({
   collection: 'board'
 }
 );
+
+boardSchema.index({title: 'text', content: 'text'})
 
 boardSchema.statics.createOrSave = function (payload) {
   // this === Model

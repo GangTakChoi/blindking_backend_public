@@ -1,21 +1,55 @@
 const boardModel = require('../model/board_model')
 const boardLikeModel = require('../model/board_like_model')
+const boardCommentModel = require('../model/board_comment')
 
 exports.getBoardList = async (req, res, next) => {
   try {
+    // let filter = {
+    //   isDelete: false,
+    //   isShow: true,
+    // }
+
     let filter = {
-      isDelete: false,
-      isShow: true,
+      $and: [{isDelete: false},{isShow: true}],
     }
+
     let currentPage = Number(req.query.page)
     let countPerPage = Number(req.query.countPerPage)
+    let searchOption = req.query.searchOption
+    let searchContent = req.query.searchContent
+
+    // https://ip99202.github.io/posts/nodejs,-mongodb-%EA%B2%8C%EC%8B%9C%ED%8C%90-%EA%B2%80%EC%83%89-%EA%B8%B0%EB%8A%A5/
+    // 참고
+    if (searchOption !== undefined && searchContent !== undefined) {
+      if (searchOption !== 'nickname' && searchOption !== 'title' && searchOption !== 'content' && searchOption !== 'title+content' ) {
+        res.status(400).json({
+          errorMessage: 'bad request'
+        })
+        return
+      }
+
+      if (searchOption === 'title') {
+        filter.$or = [{title: new RegExp(searchContent)}]
+      } else if (searchOption === 'content') {
+        filter.$or = [{content: new RegExp(searchContent)}]
+      } else if (searchOption === 'title+content') {
+        filter.$or = [{title: new RegExp(searchContent)}, {content: new RegExp(searchContent)}]
+      }
+    }
 
     let boardList = await boardModel
     .find(filter)
     .populate('writerUserId')
-    .sort({ createdAt: -1 })
+    .sort({ _id: -1 })
     .skip(( currentPage - 1 ) * countPerPage)
     .limit(countPerPage)
+
+    // let boardList = await boardModel
+    // .find(filter)
+    // .populate('writerUserId')
+    // .sort({ _id: -1 })
+    // .skip(( currentPage - 1 ) * countPerPage)
+    // .limit(countPerPage)
 
     let totalBoardCount = await boardModel.countDocuments(filter)
 
@@ -38,6 +72,7 @@ exports.getBoardList = async (req, res, next) => {
         like: boardInfo.like,
         dislike: boardInfo.dislike,
         createdAt: boardInfo.createdAt,
+        commentCount: boardInfo.commentCount,
       }
 
       responseData.push(tempBoardInfo)
@@ -69,9 +104,72 @@ exports.fileupload = async (req, res, next) => {
   
 }
 
-exports.writeCommunity = async (req, res, next) => {
+exports.writeBoardOfComment = async (req, res, next) => {
   try {
-    console.log(req.body.content)
+    let userId = res.locals.userObjectId
+    let boardId = req.params.id
+    let content = req.body.content
+    let nickname = res.locals.userNickname
+
+    let boardCommentInfo = {
+      writerUserId: userId,
+      boardId: boardId,
+      content: content,
+      isDelete: false,
+    }
+
+    let savedCommentInfo = await boardCommentModel.createOrSave(boardCommentInfo)
+
+    if (!savedCommentInfo) {
+      throw('[writeBoardOfComment]' + '댓글 등록 실패')
+    }
+
+    let filter = {
+      boardId: boardId,
+      isDelete: false
+    }
+
+    let commentCount = await boardCommentModel.countDocuments(filter)
+
+    await boardModel.findOneAndUpdate(
+      {_id: boardId},
+      {commentCount: commentCount},
+    )
+
+    // if (boardCommentInfoList || !Array.isArray(boardCommentInfoList)) {
+    //   throw('[' + this + ']' + '댓글 리스트 정보 조회 실패')
+    // }
+
+    let commentInfo = {
+      nickname: nickname,
+      createdDate: savedCommentInfo.createdAt,
+      content: savedCommentInfo.content,
+    }
+
+    // boardCommentInfoList.forEach((commentInfo) => {
+    //   let tempCommentInfo = {
+    //     nickname: commentInfo.writerUserId.nickname,
+    //     content: commentInfo.content,
+    //     createdDate: commentInfo.createdAt,
+    //   }
+
+    //   commentInfoList.push(tempCommentInfo)
+    // })
+
+    res.status(200).json({
+      result: 'success',
+      commentInfo: commentInfo,
+    });
+  } catch (err) {
+    console.log(err)
+    res.status(500).json({
+      result: 'server error'
+    });
+  }
+}
+
+exports.writeBoard = async (req, res, next) => {
+  try {
     let boardInfo = {
       writerUserId: res.locals.userObjectId,
       title: req.body.title,
@@ -245,6 +343,25 @@ exports.getBoardDetail = async (req, res, next) => {
       { _id: boardId },
       { view: boardInfo.view + 1 }
     )
+
+    let boardCommentInfoList = []
+
+    result = await boardCommentModel
+    .find({boardId: boardId, isDelete: false})
+    .populate('writerUserId', 'nickname')
+    .sort({ _id: -1 })
+
+    if (result && Array.isArray(result) && result.length !== 0) {
+      result.forEach((data) => {
+        let commentInfo = {
+          nickname: data.writerUserId.nickname,
+          content: data.content,
+          createdDate: data.createdAt,
+        }
+
+        boardCommentInfoList.push(commentInfo)
+      })
+    }
     
     let responseData = {
       nickname: boardInfo.writerUserId.nickname,
@@ -254,6 +371,7 @@ exports.getBoardDetail = async (req, res, next) => {
       like: boardInfo.like,
       dislike: boardInfo.dislike,
       createdAt: boardInfo.createdAt,
+      boardCommentInfoList: boardCommentInfoList,
     }
 
 
