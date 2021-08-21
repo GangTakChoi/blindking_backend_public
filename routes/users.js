@@ -30,5 +30,8 @@ router.post('/friend/:userObjectId/block', verifyToken, userControllers.blockFri
 // 친구 차단 해제
 router.post('/friend/:userObjectId/release-block', verifyToken, userControllers.releaseBlockFriend);
 
+// 유저 매칭 활성화
+router.put('/active-matching', verifyToken, userControllers.activeMatching); 
+
 
 module.exports = router;

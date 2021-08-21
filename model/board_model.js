@@ -4,7 +4,7 @@ const mongoose = require('mongoose');
 const boardSchema = new mongoose.Schema({
   writerUserId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   title: { type: String, index: true, required: true },
-  content: { type: String, required: true },
+  content: { type: String, index: true, required: true },
   view: { type: Number, default: 0, required: true},
   like: { type: Number, default: 0, required: true},
   dislike: { type: Number, default: 0, required: true},

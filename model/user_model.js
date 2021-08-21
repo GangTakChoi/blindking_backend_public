@@ -26,7 +26,8 @@ const usersSchema = Schema({
   nickname: { type: String, required: true, unique: true },
   gender: { type: Boolean, required: true, default: true }, // true : 남성, false : 여성
   birthYear: { type: Number, required: false, default: 0 },
-  mbti: { type: String, required: false, enum: ["ISTJ", "ISFJ", "INFJ", "INTJ", "ISTP", "ISFP", "INFP", "INTP", "ESTP", "ESFP", "ENFP", "ENTP", "ESTJ", "ESFJ", "ENFJ", "ENTJ", ""], default: '' },
+  mbti: { type: String, required: false, enum: ["ISTJ", "ISFJ", "INFJ", "INTJ", "ISTP", "ISFP", "INFP", "INTP", "ESTP", "ESFP", "ENFP", "ENTP", "ESTJ", "ESFJ", "ENFJ", "ENTJ", "unkown"], default: 'unkown' },
+  isActiveMatching: { type: Boolean, required: true, default: false },
   questionList: [questionInfo],
   region: regionInfoSchema,
 },

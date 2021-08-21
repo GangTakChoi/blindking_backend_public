@@ -31,6 +31,7 @@ exports.addUser = async function (req, res, next) {
       nickname: userNickname,
       gender: userGender,
       questionList: userQuestionList,
+      region: {}
     }
 
     await userModel.create(userInfo)
@@ -41,6 +42,47 @@ exports.addUser = async function (req, res, next) {
     res.status(500).json({ errorMessage: 'server error' });
   }
 };
+
+exports.activeMatching = async (req, res, next) => {
+  try {
+    let userObjectId = res.locals.userObjectId
+
+    let userInfo = await userModel.findOne({ _id:userObjectId })
+
+    // 비활성화 상태에서 활성화로 전환하는 경우
+    // 필수 자기소개작성 목록 체크 및 유효성 검증
+    if (!userInfo.isActiveMatching) {
+      if (userInfo.mbti === 'unkown' || !userInfo.birthYear || !userInfo.region || !userInfo.region.rootAreaCode || !userInfo.region.subAreaCode) {
+        res.status(400).json({ errorMessage: '자기소개작성에서 MBTI, 출생년도, 지역을 설정하셔야\n매칭활성화가 가능합니다.' })
+        return
+      }
+
+      let filter = {
+        parentCode: userInfo.region.rootAreaCode,
+        code: userInfo.region.subAreaCode
+      }
+
+      let result = await areaModel.findOne(filter)
+
+      if (!result) {
+        res.status(400).json({ errorMessage: '설정된 지역이 유효하지 않습니다.' })
+        return
+      }
+    }
+
+    let updatedUserInfo = await userModel.findOneAndUpdate(
+      { _id:userObjectId }, 
+      { isActiveMatching: !userInfo.isActiveMatching },
+      { new: true }
+    )
+
+    res.cookie('isActiveMatching', updatedUserInfo.isActiveMatching);
+    res.status(200).json({ result: 'success', isActiveMatching: updatedUserInfo.isActiveMatching })
+  } catch (e) {
+    console.log(e)
+    res.status(500).json({ errorMessage: 'server error' });
+  }
+}
 
 exports.createToken = async function (req, res, next) {
   try {
@@ -62,6 +104,7 @@ exports.createToken = async function (req, res, next) {
       );
       res.cookie('token', token);
       res.cookie('nickname', userInfo.nickname);
+      res.cookie('isActiveMatching', userInfo.isActiveMatching);
       res.status(201).json({
         result: 'ok',
         token
@@ -76,7 +119,7 @@ exports.createToken = async function (req, res, next) {
 
 exports.setSelfIntroduction = async function (req, res, next) {
   try {
-    const userId = res.locals.userId.body
+    const userObjectId = res.locals.userObjectId
     const userBirthYear = req.body.birthYear
     const userMBTI = req.body.mbti
     const userQuestionList = req.body.questionList
@@ -93,7 +136,7 @@ exports.setSelfIntroduction = async function (req, res, next) {
 
     // mbti 유효성 검사
     if (!mbtiInfo.data.includes(userMBTI)) {
-      res.status(400).json({ result: 'invaild request' });
+      res.status(400).json({ errorMessage: 'invaild request' });
       return
     }
 
@@ -120,7 +163,7 @@ exports.setSelfIntroduction = async function (req, res, next) {
     }
     
     // 유저 정보 업데이트
-    await userModel.updateById(userId, userUpdateInfo)
+    await userModel.findOneAndUpdate({_id: userObjectId}, userUpdateInfo)
 
     res.status(200).json({ result: 'success' });
   } catch (e) {
@@ -170,7 +213,7 @@ exports.getMachingPartnerList = async function (req, res, next) {
     let userId = res.locals.userId
     let userInfo = await userModel.findOne({id: userId})
     let userGender = userInfo.gender
-    let userList = await userModel.find({gender: !userGender}, {birthYear:1, nickname:1,gender:1,mbti:1,questionList:1,region:1})
+    let userList = await userModel.find({gender: !userGender, isActiveMatching: true}, {birthYear:1, nickname:1,gender:1,mbti:1,questionList:1,region:1})
     .populate('questionList.questionId', { updatedAt: 0, createdAt: 0 })
 
     res.status(200).json(userList)
