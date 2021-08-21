@@ -1,6 +1,24 @@
 const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
+const questionInfo = mongoose.Schema({
+  questionId: { type: mongoose.Schema.Types.ObjectId, ref: 'question_list', required: true },
+  answer: { type: String, default: '', maxLength: 20 }
+},
+{
+  _id : false
+}
+)
+
+const regionInfoSchema = mongoose.Schema({
+  rootAreaCode: { type: String, index : true, default: '' },
+  subAreaCode: { type: String, index : true, default: '' },
+},
+{
+  _id : false
+}
+)
+
 // Define Schemes
 const usersSchema = Schema({
   id: { type: String, required: true, unique: true },
@@ -8,17 +26,13 @@ const usersSchema = Schema({
   nickname: { type: String, required: true, unique: true },
   gender: { type: Boolean, required: true, default: true }, // true : 남성, false : 여성
   birthYear: { type: Number, required: false, default: 0 },
-  mbti: { type: String, required: false, default: '' },
-  question1: { type: String, required: false, default: '' },
-  question2: { type: String, required: false, default: '' },
-  question3: { type: String, required: false, default: '' },
-  question4: { type: String, required: false, default: '' },
-  question5: { type: String, required: false, default: '' },
-  question6: { type: String, required: false, default: '' },
-  question7: { type: String, required: false, default: '' },
+  mbti: { type: String, required: false, enum: ["ISTJ", "ISFJ", "INFJ", "INTJ", "ISTP", "ISFP", "INFP", "INTP", "ESTP", "ESFP", "ENFP", "ENTP", "ESTJ", "ESFJ", "ENFJ", "ENTJ", ""], default: '' },
+  questionList: [questionInfo],
+  region: regionInfoSchema,
 },
 {
-  timestamps: true
+  timestamps: true,
+  versionKey: false 
 },
 {
   collection: 'user'

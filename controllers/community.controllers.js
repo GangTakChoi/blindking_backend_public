@@ -4,11 +4,6 @@ const boardCommentModel = require('../model/board_comment')
 
 exports.getBoardList = async (req, res, next) => {
   try {
-    // let filter = {
-    //   isDelete: false,
-    //   isShow: true,
-    // }
-
     let filter = {
       $and: [{isDelete: false},{isShow: true}],
     }
@@ -43,13 +38,6 @@ exports.getBoardList = async (req, res, next) => {
     .sort({ _id: -1 })
     .skip(( currentPage - 1 ) * countPerPage)
     .limit(countPerPage)
-
-    // let boardList = await boardModel
-    // .find(filter)
-    // .populate('writerUserId')
-    // .sort({ _id: -1 })
-    // .skip(( currentPage - 1 ) * countPerPage)
-    // .limit(countPerPage)
 
     let totalBoardCount = await boardModel.countDocuments(filter)
 
@@ -94,7 +82,6 @@ exports.getBoardList = async (req, res, next) => {
 exports.fileupload = async function(req, res, nest) {
   var fileUpload = require('../middlewares/s3Upload.js')
   var imgUpload = fileUpload.single('upload')
-  const multer = require('multer')
 
   imgUpload(req, res, function (err) {
     if (err) {
@@ -116,6 +103,53 @@ exports.fileupload = async function(req, res, nest) {
       "url": req.file.location
     });
   })
+}
+
+exports.deleteComment = async (req, res, next) => {
+  try {
+    let boardId = req.params.boardId
+    let commentId = req.params.commentId
+    let myObjectId = res.locals.userObjectId
+
+    let commentInfo = await boardCommentModel.findOne({_id: commentId})
+    .populate('writerUserId', '_id')
+
+    // 유효성 검사
+    if (!commentInfo || String(commentInfo.writerUserId._id) !== myObjectId) {
+      res.status(400).json({
+        result: 'invalid request'
+      });
+      return
+    }
+
+    // 댓글 삭제 처리
+    await boardCommentModel.findOneAndUpdate(
+      {_id: commentId},
+      {isDelete: true},
+    )
+
+    let filter = {
+      boardId: boardId,
+      isDelete: false
+    }
+
+    // 해당 게시물 댓글 수 갱신
+    let commentCount = await boardCommentModel.countDocuments(filter)
+
+    await boardModel.findOneAndUpdate(
+      {_id: boardId},
+      {commentCount: commentCount},
+    )
+
+    res.status(200).json({
+      result: 'success',
+    });
+  } catch (e) {
+    console.log(e)
+    res.status(500).json({
+      result: 'server error'
+    });
+  }
 }
 
 exports.writeBoardOfComment = async (req, res, next) => {
@@ -150,25 +184,13 @@ exports.writeBoardOfComment = async (req, res, next) => {
       {commentCount: commentCount},
     )
 
-    // if (boardCommentInfoList || !Array.isArray(boardCommentInfoList)) {
-    //   throw('[' + this + ']' + '댓글 리스트 정보 조회 실패')
-    // }
-
     let commentInfo = {
+      objectId: savedCommentInfo._id,
+      isMine: true,
       nickname: nickname,
       createdDate: savedCommentInfo.createdAt,
       content: savedCommentInfo.content,
     }
-
-    // boardCommentInfoList.forEach((commentInfo) => {
-    //   let tempCommentInfo = {
-    //     nickname: commentInfo.writerUserId.nickname,
-    //     content: commentInfo.content,
-    //     createdDate: commentInfo.createdAt,
-    //   }
-
-    //   commentInfoList.push(tempCommentInfo)
-    // })
 
     res.status(200).json({
       result: 'success',
@@ -362,12 +384,14 @@ exports.getBoardDetail = async (req, res, next) => {
 
     result = await boardCommentModel
     .find({boardId: boardId, isDelete: false})
-    .populate('writerUserId', 'nickname')
+    .populate('writerUserId', '_id nickname')
     .sort({ _id: -1 })
 
     if (result && Array.isArray(result) && result.length !== 0) {
       result.forEach((data) => {
         let commentInfo = {
+          objectId: data._id,
+          isMine:  String(data.writerUserId._id) === myObjectId ? true : false,
           nickname: data.writerUserId.nickname,
           content: data.content,
           createdDate: data.createdAt,

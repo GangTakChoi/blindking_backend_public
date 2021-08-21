@@ -18,7 +18,8 @@ const chattingRoomSchema = new mongoose.Schema({
   isClose: {type: Boolean, default: false, required: true }, 
 },
 {
-  timestamps: true
+  timestamps: true,
+  versionKey: false 
 },
 {
   collection: 'chatting_room'

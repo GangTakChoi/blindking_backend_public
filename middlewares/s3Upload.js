@@ -25,7 +25,7 @@ var upload = multer({
     key: (req, file, cb) => {
       const clientToken = req.cookies.token;
       const decoded = jwt.verify(clientToken, YOUR_SECRET_KEY);
-      
+
       switch (file.mimetype) {
 				case 'image/jpeg':
 					mimeType = 'jpg';
@@ -42,7 +42,7 @@ var upload = multer({
 
         // 이미지 파일이 아닌 경우
 				default:
-          cb(new Error('is not image file'))
+          cb(new Error('이미지 파일이 아닙니다.'))
           return
 			}
 
@@ -50,7 +50,7 @@ var upload = multer({
       cb(null, filename)
     },
   }),
-  limits: { fileSize: 1024 * 1024 * fileLimitSizeMB } // 최대 1.5MB
+  limits: { fileSize: 1024 * 1024 * fileLimitSizeMB }
 });
 
 module.exports = upload

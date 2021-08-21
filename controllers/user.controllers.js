@@ -2,12 +2,44 @@ const jwt = require('jsonwebtoken')
 const userModel = require('../model/user_model')
 const userFriendsModel = require('../model/user_friends_model')
 const chattingRoomModel = require('../model/chatting_room')
+const areaModel = require('../model/area_model')
+const commonModel = require('../model/common_model')
+const questionListModel = require('../model/question_list_model')
 
 exports.addUser = async function (req, res, next) {
-  const userInfo = req.body
-  userModel.create(userInfo)
-  .then(user => res.status(201).json(user))
-  .catch(err => res.status(500).send(err));
+  try {
+    const userId = req.body.id
+    const userPw = req.body.pw
+    const userNickname = req.body.nickname
+    const userGender = req.body.gender
+    const userQuestionList = []
+
+    const quesiontInfoList = await questionListModel.find({ isDelete: false }, { _id: 1 }).sort({ order: 1 })
+
+    quesiontInfoList.forEach((element) => {
+      let questionInfo = {
+        questionId: element._id,
+        answer: ''
+      }
+
+      userQuestionList.push(questionInfo)
+    })
+
+    const userInfo = {
+      id: userId,
+      pw: userPw,
+      nickname: userNickname,
+      gender: userGender,
+      questionList: userQuestionList,
+    }
+
+    await userModel.create(userInfo)
+
+    res.status(201).json({ result: 'success' })
+  } catch (e) {
+    console.log(e)
+    res.status(500).json({ errorMessage: 'server error' });
+  }
 };
 
 exports.createToken = async function (req, res, next) {
@@ -29,6 +61,7 @@ exports.createToken = async function (req, res, next) {
         {expiresIn: '3h'}
       );
       res.cookie('token', token);
+      res.cookie('nickname', userInfo.nickname);
       res.status(201).json({
         result: 'ok',
         token
@@ -42,58 +75,133 @@ exports.createToken = async function (req, res, next) {
 };
 
 exports.setSelfIntroduction = async function (req, res, next) {
-  const userId = res.locals.userId
+  try {
+    const userId = res.locals.userId.body
+    const userBirthYear = req.body.birthYear
+    const userMBTI = req.body.mbti
+    const userQuestionList = req.body.questionList
 
-  let userUpdateInfo = req.body
-  userUpdateInfo.id = res.locals.userId
-  
-  userModel.updateById(userId, userUpdateInfo)
-  .then(userInfo => {
-    res.status(200).json({
-      result: 'ok',
-      userInfo: userInfo
-    });
-  })
-  .catch(err => res.status(500).send(err));
+    // 유저 정보
+    let userUpdateInfo = {
+      birthYear: userBirthYear,
+      mbti: userMBTI,
+      questionList: userQuestionList,
+      region: {}
+    }
+
+    let mbtiInfo = await commonModel.findOne({key:'mbti'})
+
+    // mbti 유효성 검사
+    if (!mbtiInfo.data.includes(userMBTI)) {
+      res.status(400).json({ result: 'invaild request' });
+      return
+    }
+
+    // 지역 정보
+    if (req.body.rootAreaCode !== undefined && req.body.subAreaCode !== undefined) {
+      let rootAreaCode = req.body.rootAreaCode
+      let subAreaCode = req.body.subAreaCode
+
+      let filter = {
+        parentCode: rootAreaCode,
+        code: subAreaCode
+      }
+
+      let result = await areaModel.findOne(filter)
+
+      // 지역 코드 유효성 검사
+      if (!result) {
+        res.status(400).json({ result: 'invaild request' });
+        return
+      }
+
+      userUpdateInfo.region.rootAreaCode = rootAreaCode
+      userUpdateInfo.region.subAreaCode = subAreaCode
+    }
+    
+    // 유저 정보 업데이트
+    await userModel.updateById(userId, userUpdateInfo)
+
+    res.status(200).json({ result: 'success' });
+  } catch (e) {
+    console.log(e)
+    res.status(500).json({ errorMessage: 'server error' });
+  }
 };
 
 exports.getUserInfo = async function (req, res, next) {
-  const userId = res.locals.userId
+  try {
+    const userId = res.locals.userId
 
-  userModel.findOneById(userId)
-  .then(userInfo => {
-    if (userInfo !== null)
-      res.status(200).json(userInfo)
-    else
+    let userInfo = await userModel.findOneById(userId).populate('questionList.questionId', { updatedAt: 0, createdAt: 0 })
+
+    if (!userInfo) {
       res.status(401).json({ error: 'unauthorized' })
-  })
-  .catch(err => res.status(500).send(err));
+      return
+    }
+
+    let upperArea = await areaModel.find({ depth:0 }, { _id: 0 })
+    let subArea = await areaModel.find({ depth:1 }).sort({ name: 1 })
+    let mbtiInfo = await commonModel.findOne({ key:'mbti' })
+
+    let response = {
+      userInfo: {
+        birthYear: userInfo.birthYear,
+        mbti: userInfo.mbti,
+        region: userInfo.region,
+        questionList: userInfo.questionList,
+      },
+      regionInfo: {
+        upperArea: upperArea,
+        subArea: subArea
+      },
+      mbtiList: mbtiInfo.data
+    }
+
+    res.status(200).json(response)
+  } catch (e) {
+    console.log(e)
+    res.status(500).json({ errorMessage: 'server error' })
+  }
 };
 
 exports.getMachingPartnerList = async function (req, res, next) {
-  let userId = res.locals.userId
-  let filter = {
-    id: userId
-  }
-  let userInfo = await userModel.findOne(filter)
+  try {
+    let userId = res.locals.userId
+    let userInfo = await userModel.findOne({id: userId})
+    let userGender = userInfo.gender
+    let userList = await userModel.find({gender: !userGender}, {birthYear:1, nickname:1,gender:1,mbti:1,questionList:1,region:1})
+    .populate('questionList.questionId', { updatedAt: 0, createdAt: 0 })
 
-  // 이성 필터
-  filter = {
-    gender: !userInfo.gender
-  }
-  userModel.findAll(filter)
-  .then(userList => {
     res.status(200).json(userList)
-  })
-  .catch(err => res.status(500).send(err));
+  } catch (e) {
+    console.log(e)
+    res.status(500).json({
+      errorMessage: "server error"
+    })
+  }
 }
 
 exports.getMachingPartnerDetail = async function (req, res, next) {
-  let userId = req.params.id
-  let userDetailInfo = await userModel.findOneBy_Id(userId)
-  res.status(200).json({
-    userDetailInfo: userDetailInfo
-  });
+  try {
+    let userObjectId = req.params.id
+    let userDetailInfo = await userModel.findOne({_id: userObjectId}, {birthYear:1, nickname:1,gender:1,mbti:1,questionList:1,region:1})
+    .populate('questionList.questionId', { updatedAt: 0, createdAt: 0 })
+
+    if (!userDetailInfo) {
+      res.status(400).json({errorMessage: 'invalid request'})
+    }
+
+    res.status(200).json({
+      userDetailInfo: userDetailInfo
+    });
+
+  } catch (e) {
+    console.log(e)
+    res.status(500).json({
+      errorMessage: "server error"
+    })
+  }
 }
 
 exports.requestFriend = async function (req, res, next) {

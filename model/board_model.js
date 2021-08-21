@@ -13,6 +13,7 @@ const boardSchema = new mongoose.Schema({
   isShow: {type: Boolean, index: true, default: true, required: true},
 },
 {
+  versionKey: false,
   timestamps: true
 },
 {

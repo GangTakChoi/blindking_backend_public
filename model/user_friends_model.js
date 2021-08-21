@@ -8,6 +8,7 @@ const userFriendSchema = new mongoose.Schema({
   chattingRoomId: { type: mongoose.Schema.Types.ObjectId, ref: 'chatting_room', default: null }
 },
 {
+  versionKey: false,
   timestamps: true
 },
 {

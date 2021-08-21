@@ -15,6 +15,8 @@ router.post('/board/:id/comment', verifyToken, communityControllers.writeBoardOf
 
 router.put('/board/:id/like-dislike', apiBoardLikeLimiter, verifyToken, communityControllers.putBoardLike);
 
+router.delete('/board/:boardId/comment/:commentId', verifyToken, communityControllers.deleteComment);
+
 
 
 module.exports = router;

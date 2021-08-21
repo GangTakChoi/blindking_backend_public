@@ -8,7 +8,8 @@ const boardCommentSchema = new mongoose.Schema({
   isDelete: { type: Boolean, index: true, default: false, required: true },
 },
 {
-  timestamps: true
+  timestamps: true,
+  versionKey: false
 },
 {
   collection: 'board_comment'

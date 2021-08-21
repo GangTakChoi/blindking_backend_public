@@ -7,6 +7,9 @@ const boardLikeSchema = new mongoose.Schema({
   evaluation: { type: String, enum: ['like', 'dislike', 'none'], required: true }
 },
 {
+  versionKey: false 
+},
+{
   collection: 'board_like'
 }
 );
