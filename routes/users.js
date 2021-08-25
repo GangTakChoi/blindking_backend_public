@@ -31,7 +31,9 @@ router.post('/friend/:userObjectId/block', verifyToken, userControllers.blockFri
 router.post('/friend/:userObjectId/release-block', verifyToken, userControllers.releaseBlockFriend);
 
 // 유저 매칭 활성화
-router.put('/active-matching', verifyToken, userControllers.activeMatching); 
+router.put('/active-matching', verifyToken, userControllers.activeMatching);
+// 유저 매칭 상위 노출
+router.put('/matching-top-display', verifyToken, userControllers.useTopDisplay);
 
 
 module.exports = router;

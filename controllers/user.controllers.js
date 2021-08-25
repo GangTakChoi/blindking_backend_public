@@ -43,6 +43,72 @@ exports.addUser = async function (req, res, next) {
   }
 };
 
+exports.useTopDisplay = async (req, res, next) => {
+  try {
+    let userObjectId = res.locals.userObjectId
+
+    let userInfo = await userModel.findOne(
+      { _id:userObjectId },
+      { matchingTopDisplayUseingTime: 1 }
+    )
+
+    const matchingTopDisplayUseingTime = userInfo.matchingTopDisplayUseingTime
+
+    if (matchingTopDisplayUseingTime === null) {
+      let updatedUserInfo = await userModel.findOneAndUpdate(
+        { _id:userObjectId }, 
+        { matchingTopDisplayUseingTime: Date.now() },
+        { new: true }
+      )
+      
+      res.cookie('matchingTopDisplayUseingTime', updatedUserInfo.matchingTopDisplayUseingTime.getTime());
+      res.status(200).json({ matchingTopDisplayUseingTime: updatedUserInfo.matchingTopDisplayUseingTime })
+      return
+    }
+
+    // 재사용 대기 시간 설정 (시간단위 값 설정)
+    let reuseLatencyHours = 4
+
+    const nowDateTime = Date.now()
+
+    const timeDiffTime = nowDateTime - matchingTopDisplayUseingTime
+    const fourHoursTime = 1000 * 60 * 60 * reuseLatencyHours
+
+    if (timeDiffTime < fourHoursTime) {
+      const displayTime = fourHoursTime - timeDiffTime
+
+      const timeDiffMin = displayTime / 1000 / 60
+
+      let displayDiffHour = Math.floor(displayTime / 1000 / 60 / 60)
+      let displayDiffMin = Math.floor(timeDiffMin - (displayDiffHour * 60))
+      let displayDiffSec = Math.floor(displayTime / 1000 - (Math.floor(timeDiffMin) * 60))
+
+      displayDiffHour = '0' + displayDiffHour
+      if (displayDiffMin < 10) displayDiffMin = '0' + displayDiffMin
+      if (displayDiffSec < 10) displayDiffSec = '0' + displayDiffSec
+
+      res.cookie('matchingTopDisplayUseingTime', matchingTopDisplayUseingTime.getTime());
+      res.status(400).json({errorMessage: `재사용 대기시간이 ${displayDiffHour}시 ${displayDiffMin}분 ${displayDiffSec}초 남았습니다.`})
+      return
+    } else {
+      let updatedUserInfo = await userModel.findOneAndUpdate(
+        { _id:userObjectId }, 
+        { matchingTopDisplayUseingTime: Date.now() },
+        { new: true }
+      )
+      
+      res.cookie('matchingTopDisplayUseingTime', updatedUserInfo.matchingTopDisplayUseingTime.getTime());
+      res.status(200).json({ matchingTopDisplayUseingTime: updatedUserInfo.matchingTopDisplayUseingTime })
+      return
+    }
+
+    
+  } catch (e) {
+    console.log(e)
+    res.status(500).json({errorMessage: 'server error'})
+  }
+}
+
 exports.activeMatching = async (req, res, next) => {
   try {
     let userObjectId = res.locals.userObjectId
@@ -77,6 +143,7 @@ exports.activeMatching = async (req, res, next) => {
     )
 
     res.cookie('isActiveMatching', updatedUserInfo.isActiveMatching);
+    res.cookie('matchingTopDisplayUseingTime', updatedUserInfo.matchingTopDisplayUseingTime.getTime());
     res.status(200).json({ result: 'success', isActiveMatching: updatedUserInfo.isActiveMatching })
   } catch (e) {
     console.log(e)
@@ -105,6 +172,8 @@ exports.createToken = async function (req, res, next) {
       res.cookie('token', token);
       res.cookie('nickname', userInfo.nickname);
       res.cookie('isActiveMatching', userInfo.isActiveMatching);
+      res.cookie('matchingTopDisplayUseingTime', userInfo.matchingTopDisplayUseingTime.getTime());
+      
       res.status(201).json({
         result: 'ok',
         token
@@ -113,7 +182,8 @@ exports.createToken = async function (req, res, next) {
       res.status(400).json({ error: 'invalid user' });
     }
   } catch (err) {
-    res.status(500).send(err)
+    console.log(err)
+    res.status(500).json({errorMessage: 'server error'})
   }
 };
 
@@ -146,20 +216,27 @@ exports.setSelfIntroduction = async function (req, res, next) {
       let subAreaCode = req.body.subAreaCode
 
       let filter = {
-        parentCode: rootAreaCode,
-        code: subAreaCode
+        $or: [{code: subAreaCode},{code: rootAreaCode}]
       }
 
-      let result = await areaModel.findOne(filter)
+      let areaInfoList = await areaModel.find(filter)
 
       // 지역 코드 유효성 검사
-      if (!result) {
-        res.status(400).json({ result: 'invaild request' });
+      if (!areaInfoList || !Array.isArray(areaInfoList) || areaInfoList.length !== 2) {
+        res.status(400).json({ errorMessage: 'invaild request' });
         return
       }
 
-      userUpdateInfo.region.rootAreaCode = rootAreaCode
-      userUpdateInfo.region.subAreaCode = subAreaCode
+      areaInfoList.forEach((areaInfo) => {
+        if (areaInfo.depth === 0) {
+          userUpdateInfo.region.rootAreaCode = areaInfo.code
+          userUpdateInfo.region.rootAreaName = areaInfo.name
+        }
+        if (areaInfo.depth === 1) {
+          userUpdateInfo.region.subAreaCode = areaInfo.code
+          userUpdateInfo.region.subAreaName = areaInfo.name
+        }
+      })
     }
     
     // 유저 정보 업데이트
@@ -213,10 +290,39 @@ exports.getMachingPartnerList = async function (req, res, next) {
     let userId = res.locals.userId
     let userInfo = await userModel.findOne({id: userId})
     let userGender = userInfo.gender
-    let userList = await userModel.find({gender: !userGender, isActiveMatching: true}, {birthYear:1, nickname:1,gender:1,mbti:1,questionList:1,region:1})
-    .populate('questionList.questionId', { updatedAt: 0, createdAt: 0 })
 
-    res.status(200).json(userList)
+    let searchMbtiValue = req.query.mbti
+    let searchRootAreaCode
+    let searchSubAreaCode
+    let ageRange
+
+    let userListfilter = {
+      gender: !userGender,
+      isActiveMatching: true
+    }
+
+    if (searchMbtiValue !== undefined && searchMbtiValue !== 'null') {
+      userListfilter.mbti = searchMbtiValue
+    }
+
+    let userList = await userModel
+    .find(
+      userListfilter,
+      {birthYear:1, nickname:1,gender:1,mbti:1,questionList:1,region:1}
+    )
+    .populate('questionList.questionId', { updatedAt: 0, createdAt: 0 })
+    .sort({ matchingTopDisplayUseingTime : -1 })
+
+
+    let mbtiInfo = await commonModel.findOne({ key:'mbti' })
+    let mbtiList = mbtiInfo.data.filter((element) => element !== 'unkown');
+
+    let response = {
+      userList: userList,
+      mbtiList: mbtiList
+    }
+
+    res.status(200).json(response)
   } catch (e) {
     console.log(e)
     res.status(500).json({

@@ -12,7 +12,9 @@ const questionInfo = mongoose.Schema({
 
 const regionInfoSchema = mongoose.Schema({
   rootAreaCode: { type: String, index : true, default: '' },
+  rootAreaName: { type: String, default: '' },
   subAreaCode: { type: String, index : true, default: '' },
+  subAreaName: { type: String, default: '' },
 },
 {
   _id : false
@@ -28,6 +30,7 @@ const usersSchema = Schema({
   birthYear: { type: Number, required: false, default: 0 },
   mbti: { type: String, required: false, enum: ["ISTJ", "ISFJ", "INFJ", "INTJ", "ISTP", "ISFP", "INFP", "INTP", "ESTP", "ESFP", "ENFP", "ENTP", "ESTJ", "ESFJ", "ENFJ", "ENTJ", "unkown"], default: 'unkown' },
   isActiveMatching: { type: Boolean, required: true, default: false },
+  matchingTopDisplayUseingTime: { type: Date, required: false, default: new Date(0) },
   questionList: [questionInfo],
   region: regionInfoSchema,
 },
