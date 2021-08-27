@@ -7,8 +7,14 @@ const YOUR_SECRET_KEY = process.env.SECRET_KEY;
 
 
 exports.createSocket = (server) => {
-  
-  const io = new Server(server);
+
+  const io = new Server(server, {
+    cors: {
+      origin: process.env.ORIGIN_URL,
+      methods: ["GET", "POST"],
+      credentials: true
+    }
+  });
 
   io.of('/chatting-alim').on('connection', async (socket) => {
     console.log('[chatting-alim] 연결 성공 (id:' + socket.id + ')');

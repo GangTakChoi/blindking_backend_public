@@ -21,6 +21,15 @@ app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
+// 기본 헤더(header) 설정
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", process.env.ORIGIN_URL)
+  res.header("Access-Control-Allow-Headers", "Content-Type,Content-Security-Policy")
+  res.header("Access-Control-Allow-Methods", "GET,POST,OPTIONS,PUT,DELETE")
+  res.header("Access-Control-Allow-Credentials", "true")
+  next()
+})
+
 // CONNECT TO MONGODB SERVER
 mongoose
   .connect(process.env.DB_HOST, { useNewUrlParser: true, useUnifiedTopology: true, useFindAndModify: false })
