@@ -32,10 +32,11 @@ app.use((req, res, next) => {
 
 // CONNECT TO MONGODB SERVER
 mongoose
-  .connect(process.env.DB_HOST, { useNewUrlParser: true, useUnifiedTopology: true, useFindAndModify: false })
+  .connect(process.env.DB_HOST, { useNewUrlParser: true, useCreateIndex: true, useUnifiedTopology: true, useFindAndModify: false })
   .then(() => console.log('mongoose Successfully connected to mongodb'))
   .catch(e => console.error(e));
 
+// ROUTE Handling
 app.use('/', indexRouter);
 app.use('/user', usersRouter);
 app.use('/community', communityRouter);

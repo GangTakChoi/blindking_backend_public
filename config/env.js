@@ -2,7 +2,7 @@ const dotenv = require('dotenv')
 const path = require('path')
 
 let envPath
-let stage = process.argv[3]
+let stage = process.argv[3] === undefined ? 'dev' : process.argv[3]
 
 console.log('['+ stage +' mode]')
 

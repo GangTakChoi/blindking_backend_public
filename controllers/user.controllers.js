@@ -260,8 +260,8 @@ exports.getUserInfo = async function (req, res, next) {
       return
     }
 
-    let upperArea = await areaModel.find({ depth:0 }, { _id: 0 })
-    let subArea = await areaModel.find({ depth:1 }).sort({ name: 1 })
+    let upperArea = await areaModel.find({ depth:0 }, { _id: 0, createdAt: 0, updatedAt: 0 })
+    let subArea = await areaModel.find({ depth:1 }, { _id: 0, createdAt: 0, updatedAt: 0 }).sort({ name: 1 })
     let mbtiInfo = await commonModel.findOne({ key:'mbti' })
 
     let response = {
@@ -291,35 +291,81 @@ exports.getMachingPartnerList = async function (req, res, next) {
     let userInfo = await userModel.findOne({id: userId})
     let userGender = userInfo.gender
 
-    let searchMbtiValue = req.query.mbti
-    let searchRootAreaCode
-    let searchSubAreaCode
-    let ageRange
+    // 요청 파라미터
+    let isSearch = req.query.isSearch === 'true' ? true : false
+    
+    let searchAgeRange = {
+      min: Number(req.query.ageMin),
+      max: Number(req.query.ageMax)
+    }
 
+    let searchMbtiList = []
+    if (typeof req.query.mbtiList === 'string' && req.query.mbtiList.length > 0) {
+      searchMbtiList = req.query.mbtiList.split(',')
+    }
+
+    let searchUpperAreaCodeList = []
+    if (typeof req.query.upperAreaCodeList === 'string' && req.query.upperAreaCodeList.length > 0) {
+      searchUpperAreaCodeList = req.query.upperAreaCodeList.split(',')
+    }
+
+    let searchSubAreaCode = []
+    if (typeof req.query.subAreaCodeList === 'string' && req.query.subAreaCodeList.length > 0) {
+      searchSubAreaCode = req.query.subAreaCodeList.split(',')
+    }
+
+    // 필터
     let userListfilter = {
       gender: !userGender,
       isActiveMatching: true
     }
 
-    if (searchMbtiValue !== undefined && searchMbtiValue !== 'null') {
-      userListfilter.mbti = searchMbtiValue
+    // 연령대 필터
+    if (!isNaN(searchAgeRange.max) || !isNaN(searchAgeRange.min)) {
+      userListfilter.birthYear = {
+        $gte: isNaN(searchAgeRange.max) ? 1900 : searchAgeRange.max,
+        $lte: isNaN(searchAgeRange.min) ? 9999 : searchAgeRange.min
+      }
+    }
+
+    // mbti 필터
+    if (searchMbtiList.length > 0) {
+      userListfilter['mbti'] = { $in: searchMbtiList }
+    }
+
+    // 상위 지역 필터
+    if (searchUpperAreaCodeList.length > 0) {
+      userListfilter['region.rootAreaCode'] = { $in: searchUpperAreaCodeList }
+    }
+
+    // 하위 지역 필터
+    if (searchSubAreaCode.length > 0) {
+      userListfilter['region.subAreaCode'] = { $in: searchSubAreaCode }
     }
 
     let userList = await userModel
     .find(
       userListfilter,
-      {birthYear:1, nickname:1,gender:1,mbti:1,questionList:1,region:1}
+      { birthYear:1, nickname:1,gender:1,mbti:1,questionList:1,region:1 }
     )
     .populate('questionList.questionId', { updatedAt: 0, createdAt: 0 })
     .sort({ matchingTopDisplayUseingTime : -1 })
 
-
-    let mbtiInfo = await commonModel.findOne({ key:'mbti' })
-    let mbtiList = mbtiInfo.data.filter((element) => element !== 'unkown');
-
     let response = {
       userList: userList,
-      mbtiList: mbtiList
+    }
+
+    if (!isSearch) {
+      let mbtiInfo = await commonModel.findOne({ key:'mbti' })
+      let mbtiList = mbtiInfo.data.filter((element) => element !== 'unkown');
+      let upperArea = await areaModel.find({ depth:0 }, { _id: 0, createdAt: 0, updatedAt: 0 })
+      let subArea = await areaModel.find({ depth:1 }, { _id: 0, createdAt: 0, updatedAt: 0 }).sort({ name: 1 })
+
+      response.mbtiList = mbtiList
+      response.regionInfo = {
+        upperArea: upperArea,
+        subArea: subArea,
+      }
     }
 
     res.status(200).json(response)

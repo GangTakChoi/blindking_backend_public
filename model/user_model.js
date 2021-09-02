@@ -21,13 +21,15 @@ const regionInfoSchema = mongoose.Schema({
 }
 )
 
+regionInfoSchema.index({rootAreaCode: 'text', subAreaCode: 'text'})
+
 // Define Schemes
 const usersSchema = Schema({
   id: { type: String, required: true, unique: true },
   pw: { type: String, required: true },
   nickname: { type: String, required: true, unique: true },
-  gender: { type: Boolean, required: true, default: true }, // true : 남성, false : 여성
-  birthYear: { type: Number, required: false, default: 0 },
+  gender: { type: Boolean, index: true, required: true, default: true }, // true : 남성, false : 여성
+  birthYear: { type: Number, index: true, required: false, default: 0 },
   mbti: { type: String, required: false, enum: ["ISTJ", "ISFJ", "INFJ", "INTJ", "ISTP", "ISFP", "INFP", "INTP", "ESTP", "ESFP", "ENFP", "ENTP", "ESTJ", "ESFJ", "ENFJ", "ENTJ", "unkown"], default: 'unkown' },
   isActiveMatching: { type: Boolean, required: true, default: false },
   matchingTopDisplayUseingTime: { type: Date, required: false, default: new Date(0) },
@@ -42,6 +44,8 @@ const usersSchema = Schema({
   collection: 'user'
 }
 );
+
+usersSchema.index({matchingTopDisplayUseingTime: -1}, {mbti: 'text'})
 
 // Create new users document
 usersSchema.statics.create = function (payload) {
