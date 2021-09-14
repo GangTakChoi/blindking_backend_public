@@ -1,6 +1,21 @@
 # matchmaking_api
 
-## 실행방법
+## Project setup
 ```
-npm start
+npm install
+```
+
+## 서버실행[개발환경]
+```
+npm start dev
+```
+
+## 서버실행[스테이징환경]
+```
+npm start staging
+```
+
+## 서버실행[상용환경]
+```
+npm start prod
 ```

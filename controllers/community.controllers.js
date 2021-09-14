@@ -15,13 +15,8 @@ exports.getBoardList = async (req, res, next) => {
 
     // https://ip99202.github.io/posts/nodejs,-mongodb-%EA%B2%8C%EC%8B%9C%ED%8C%90-%EA%B2%80%EC%83%89-%EA%B8%B0%EB%8A%A5/
     // 참고
+
     if (searchOption !== undefined && searchContent !== undefined) {
-      if (searchOption !== 'nickname' && searchOption !== 'title' && searchOption !== 'content' && searchOption !== 'title+content' ) {
-        res.status(400).json({
-          errorMessage: 'bad request'
-        })
-        return
-      }
 
       if (searchOption === 'title') {
         filter.$or = [{title: new RegExp(searchContent)}]
@@ -29,12 +24,18 @@ exports.getBoardList = async (req, res, next) => {
         filter.$or = [{content: new RegExp(searchContent)}]
       } else if (searchOption === 'title+content') {
         filter.$or = [{title: new RegExp(searchContent)}, {content: new RegExp(searchContent)}]
+      } else if (searchOption === 'nickname') {
+        filter.$or = [{nickname: new RegExp(searchContent)}]
+      } else {
+        res.status(400).json({
+          errorMessage: 'bad request'
+        })
+        return
       }
     }
 
     let boardList = await boardModel
     .find(filter)
-    .populate('writerUserId')
     .sort({ _id: -1 })
     .skip(( currentPage - 1 ) * countPerPage)
     .limit(countPerPage)
@@ -44,17 +45,11 @@ exports.getBoardList = async (req, res, next) => {
     let lastPageNumber = Math.ceil(totalBoardCount / countPerPage)
 
     let responseData = []
-  
-    if (boardList === null) {
-      res.status(200).json({
-        boardList: responseData
-      })
-    }
 
     boardList.forEach((boardInfo) => {
       let tempBoardInfo = {
         Objectid: boardInfo._id,
-        nickname: boardInfo.writerUserId.nickname,
+        nickname: boardInfo.nickname,
         title: boardInfo.title,
         view: boardInfo.view,
         like: boardInfo.like,
@@ -161,6 +156,7 @@ exports.writeBoardOfComment = async (req, res, next) => {
 
     let boardCommentInfo = {
       writerUserId: userId,
+      nickname: nickname,
       boardId: boardId,
       content: content,
       isDelete: false,
@@ -208,6 +204,7 @@ exports.writeBoard = async (req, res, next) => {
   try {
     let boardInfo = {
       writerUserId: res.locals.userObjectId,
+      nickname: res.locals.userNickname,
       title: req.body.title,
       content: req.body.content,
       view: 0,
@@ -373,7 +370,7 @@ exports.getBoardDetail = async (req, res, next) => {
     let boardId = req.params.id
     let myObjectId = res.locals.userObjectId
 
-    boardInfo = await boardModel.findOne({ _id: boardId}).populate('writerUserId')
+    boardInfo = await boardModel.findOne({ _id: boardId})
 
     await boardModel.findOneAndUpdate(
       { _id: boardId },
@@ -384,15 +381,14 @@ exports.getBoardDetail = async (req, res, next) => {
 
     result = await boardCommentModel
     .find({boardId: boardId, isDelete: false})
-    .populate('writerUserId', '_id nickname')
     .sort({ _id: -1 })
 
     if (result && Array.isArray(result) && result.length !== 0) {
       result.forEach((data) => {
         let commentInfo = {
           objectId: data._id,
-          isMine:  String(data.writerUserId._id) === myObjectId ? true : false,
-          nickname: data.writerUserId.nickname,
+          isMine:  String(data.writerUserId) === myObjectId ? true : false,
+          nickname: data.nickname,
           content: data.content,
           createdDate: data.createdAt,
         }
@@ -402,7 +398,7 @@ exports.getBoardDetail = async (req, res, next) => {
     }
     
     let responseData = {
-      nickname: boardInfo.writerUserId.nickname,
+      nickname: boardInfo.nickname,
       title: boardInfo.title,
       content: boardInfo.content,
       view: boardInfo.view,
@@ -411,7 +407,6 @@ exports.getBoardDetail = async (req, res, next) => {
       createdAt: boardInfo.createdAt,
       boardCommentInfoList: boardCommentInfoList,
     }
-
 
     boardLikeInfo = await boardLikeModel.findOne({
       userId: myObjectId,

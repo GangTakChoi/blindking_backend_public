@@ -11,10 +11,10 @@ const verifyToken = (req, res, next) => {
       res.locals.userNickname = decoded.nickname;
       next();
     } else {
-      res.status(401).json({ error: 'unauthorized' });
+      res.status(401).json({ errorMessage: 'unauthorized' });
     }
   } catch (err) {
-    res.status(401).json({ error: 'token expired' });
+    res.status(401).json({ errorMessage: 'token expired' });
   }
 };
 

@@ -169,17 +169,17 @@ exports.createToken = async function (req, res, next) {
         YOUR_SECRET_KEY,
         {expiresIn: '3h'}
       );
+
       res.cookie('token', token);
       res.cookie('nickname', userInfo.nickname);
       res.cookie('isActiveMatching', userInfo.isActiveMatching);
       res.cookie('matchingTopDisplayUseingTime', userInfo.matchingTopDisplayUseingTime.getTime());
       
       res.status(201).json({
-        result: 'ok',
-        token
+        result: 'ok'
       });
     } else {
-      res.status(400).json({ error: 'invalid user' });
+      res.status(400).json({ errorMessage: '로그인 실패' });
     }
   } catch (err) {
     console.log(err)
@@ -190,7 +190,7 @@ exports.createToken = async function (req, res, next) {
 exports.setSelfIntroduction = async function (req, res, next) {
   try {
     const userObjectId = res.locals.userObjectId
-    const userBirthYear = req.body.birthYear
+    const userBirthYear = Number(req.body.birthYear)
     const userMBTI = req.body.mbti
     const userQuestionList = req.body.questionList
 
@@ -200,6 +200,16 @@ exports.setSelfIntroduction = async function (req, res, next) {
       mbti: userMBTI,
       questionList: userQuestionList,
       region: {}
+    }
+
+    let nowDate = new Date();
+    const fullAgeBirthYear = nowDate.getFullYear() - 19;	// 올해 성년 출생년도
+
+    console.log(fullAgeBirthYear)
+
+    if (isNaN(userBirthYear) || userBirthYear < 1900 || userBirthYear > fullAgeBirthYear) {
+      res.status(400).json({ errorMessage: 'invaild request' });
+      return
     }
 
     let mbtiInfo = await commonModel.findOne({key:'mbti'})
@@ -251,9 +261,9 @@ exports.setSelfIntroduction = async function (req, res, next) {
 
 exports.getUserInfo = async function (req, res, next) {
   try {
-    const userId = res.locals.userId
+    const userObjectId = res.locals.userObjectId
 
-    let userInfo = await userModel.findOneById(userId).populate('questionList.questionId', { updatedAt: 0, createdAt: 0 })
+    let userInfo = await userModel.findOneBy_Id(userObjectId).populate('questionList.questionId', { updatedAt: 0, createdAt: 0 })
 
     if (!userInfo) {
       res.status(401).json({ error: 'unauthorized' })
@@ -290,9 +300,13 @@ exports.getMachingPartnerList = async function (req, res, next) {
     let userId = res.locals.userId
     let userInfo = await userModel.findOne({id: userId})
     let userGender = userInfo.gender
+    let skip = req.query.skip === undefined ? 0 : Number(req.query.skip)
+    if (isNaN(skip)) skip = 0
+    let limit = req.query.limit === undefined ? 30 : Number(req.query.limit)
+    if (isNaN(limit)) limit = 30
 
     // 요청 파라미터
-    let isSearch = req.query.isSearch === 'true' ? true : false
+    let isInitial = req.query.isInitial === 'true' ? true : false
     
     let searchAgeRange = {
       min: Number(req.query.ageMin),
@@ -350,12 +364,14 @@ exports.getMachingPartnerList = async function (req, res, next) {
     )
     .populate('questionList.questionId', { updatedAt: 0, createdAt: 0 })
     .sort({ matchingTopDisplayUseingTime : -1 })
+    .skip(skip)
+    .limit(limit)
 
     let response = {
       userList: userList,
     }
 
-    if (!isSearch) {
+    if (isInitial) {
       let mbtiInfo = await commonModel.findOne({ key:'mbti' })
       let mbtiList = mbtiInfo.data.filter((element) => element !== 'unkown');
       let upperArea = await areaModel.find({ depth:0 }, { _id: 0, createdAt: 0, updatedAt: 0 })

@@ -3,14 +3,16 @@ const mongoose = require('mongoose');
 // 게시판
 const boardSchema = new mongoose.Schema({
   writerUserId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  title: { type: String, index: true, required: true },
-  content: { type: String, index: true, required: true },
+  nickname: { type: String, required: true },
+  title: { type: String, required: true },
+  content: { type: String, required: true },
   view: { type: Number, default: 0, required: true},
   like: { type: Number, default: 0, required: true},
   dislike: { type: Number, default: 0, required: true},
+  category: { type: Number, default: 0, required: true },
   commentCount: { type: Number, default: 0, required: true },
-  isDelete: { type: Boolean, index: true, default: false, required: true },
-  isShow: {type: Boolean, index: true, default: true, required: true},
+  isDelete: { type: Boolean, default: false, required: true },
+  isShow: {type: Boolean, default: true, required: true},
 },
 {
   versionKey: false,
@@ -21,7 +23,7 @@ const boardSchema = new mongoose.Schema({
 }
 );
 
-boardSchema.index({title: 'text', content: 'text'})
+boardSchema.index({title: 'text', content: 'text', nickname: 'text', isDelete: 1, isShow: 1, category: 1})
 
 boardSchema.statics.createOrSave = function (payload) {
   // this === Model
