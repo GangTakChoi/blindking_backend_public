@@ -10,9 +10,60 @@ exports.addUser = async function (req, res, next) {
   try {
     const userId = req.body.id
     const userPw = req.body.pw
+    const userPwRepeat = req.body.pwRepeat
     const userNickname = req.body.nickname
     const userGender = req.body.gender
     const userQuestionList = []
+
+    // 아이디 유효성 검사
+    let idValiddation = /^[a-zA-Z0-9]*$/;
+
+    if (!idValiddation.test(userId)) {
+      res.status(400).json({ errorMessage: '아이디는 영문자+숫자로만 구성 할 수 있습니다.' });
+      return
+    }
+
+    if (userId.length < 4 || userId.length > 26) {
+      res.status(400).json({ errorMessage: '아이디는 4~26자로 제한됩니다.' });
+      return
+    }
+
+    let tempResult = await userModel.findOne({id: userId}, {id: 1})
+
+    if (tempResult !== null) {
+      res.status(400).json({ errorMessage: '중복된 아이디입니다.' });
+      return
+    }
+
+    // 비번 유효성 검사
+    if (userPw.length < 6 || userPw.length > 36) {
+      res.status(400).json({ errorMessage: '비밀번호 길이제한을 지켜주세요.' });
+      return
+    }
+
+    if (userPw !== userPwRepeat) {
+      res.status(400).json({ errorMessage: '비밀번호 재입력 값이 일치하지 않습니다.' });
+      return
+    }
+
+    // 닉네임 유효성 검사
+    if (userNickname.trim().length <= 0 || userNickname.length > 16) {
+      res.status(400).json({ errorMessage: '닉네임 길이제한을 지켜주세요.' });
+      return
+    }
+
+    tempResult = await userModel.findOne({nickname: userNickname}, {nickname: 1})
+
+    if (tempResult !== null) {
+      res.status(400).json({ errorMessage: '중복된 닉네임입니다.' });
+      return
+    }
+
+    // 성별 유효성 검사
+    if (userGender !== 'male' && userGender !== 'female') {
+      res.status(400).json({ errorMessage: 'invalid request' });
+      return
+    }
 
     const quesiontInfoList = await questionListModel.find({ isDelete: false }, { _id: 1 }).sort({ order: 1 })
 
@@ -112,12 +163,17 @@ exports.useTopDisplay = async (req, res, next) => {
 exports.activeMatching = async (req, res, next) => {
   try {
     let userObjectId = res.locals.userObjectId
+    let isUseMatchingTopDisplay = false
 
     let userInfo = await userModel.findOne({ _id:userObjectId })
 
-    // 비활성화 상태에서 활성화로 전환하는 경우
-    // 필수 자기소개작성 목록 체크 및 유효성 검증
+    let userUpdateInfo = {
+      isActiveMatching: !userInfo.isActiveMatching
+    }
+
+    // 비활성화 -> 활성화로 전환하는 경우
     if (!userInfo.isActiveMatching) {
+      // 필수 자기소개작성 목록 체크 및 유효성 검증
       if (userInfo.mbti === 'unkown' || !userInfo.birthYear || !userInfo.region || !userInfo.region.rootAreaCode || !userInfo.region.subAreaCode) {
         res.status(400).json({ errorMessage: '자기소개작성에서 MBTI, 출생년도, 지역을 설정하셔야\n매칭활성화가 가능합니다.' })
         return
@@ -134,17 +190,27 @@ exports.activeMatching = async (req, res, next) => {
         res.status(400).json({ errorMessage: '설정된 지역이 유효하지 않습니다.' })
         return
       }
+
+      // 첫 매칭 활성화 시 상위 노출
+      if (userInfo.matchingTopDisplayUseingTime.getTime() === 0) {
+        isUseMatchingTopDisplay = true
+        userUpdateInfo.matchingTopDisplayUseingTime = Date.now()
+      }
     }
 
     let updatedUserInfo = await userModel.findOneAndUpdate(
       { _id:userObjectId }, 
-      { isActiveMatching: !userInfo.isActiveMatching },
+      userUpdateInfo,
       { new: true }
     )
 
     res.cookie('isActiveMatching', updatedUserInfo.isActiveMatching);
     res.cookie('matchingTopDisplayUseingTime', updatedUserInfo.matchingTopDisplayUseingTime.getTime());
-    res.status(200).json({ result: 'success', isActiveMatching: updatedUserInfo.isActiveMatching })
+    res.status(200).json({ 
+      result: 'success',
+      isActiveMatching: updatedUserInfo.isActiveMatching,
+      isUseMatchingTopDisplay: isUseMatchingTopDisplay,
+    })
   } catch (e) {
     console.log(e)
     res.status(500).json({ errorMessage: 'server error' });
@@ -204,8 +270,6 @@ exports.setSelfIntroduction = async function (req, res, next) {
 
     let nowDate = new Date();
     const fullAgeBirthYear = nowDate.getFullYear() - 19;	// 올해 성년 출생년도
-
-    console.log(fullAgeBirthYear)
 
     if (isNaN(userBirthYear) || userBirthYear < 1900 || userBirthYear > fullAgeBirthYear) {
       res.status(400).json({ errorMessage: 'invaild request' });
@@ -330,7 +394,7 @@ exports.getMachingPartnerList = async function (req, res, next) {
 
     // 필터
     let userListfilter = {
-      gender: !userGender,
+      gender: userGender === 'male' ? 'female' : 'male',
       isActiveMatching: true
     }
 
@@ -550,34 +614,6 @@ exports.acceptFriend = async function (req, res, next) {
     }
 
     await establisFriendRelation(myObjectId, friendObjectId, result.chattingRoomId)
-
-    // let readedMessageCountInfos = [
-    //   {userObjectId: myObjectId}, {userObjectId: friendObjectId}
-    // ]
-
-    // // 채팅방 생성
-    // let chattingRoom = await chattingRoomModel.create({
-    //   readedMessageCountInfos: readedMessageCountInfos
-    // })
-    // let chattingRoomId = chattingRoom._id
-    
-    // // 친구에 대한 상태로 승인으로 수정
-    // await userFriendsModel.findOneAndUpdate(
-    //   {_id: result._id}, 
-    //   {
-    //     status: "accept",
-    //     chattingRoomId: chattingRoomId
-    //   },
-    // )
-    
-    // // 상대 친구의 나에 대한 상태 승인으로 수정
-    // await userFriendsModel.findOneAndUpdate(
-    //   {userObjectId: friendObjectId, friendObjectId: myObjectId}, 
-    //   {
-    //     status: "accept",
-    //     chattingRoomId: chattingRoomId
-    //   }
-    // )
 
     res.status(200).json({"result": "success"})
   } catch (err) {
@@ -839,6 +875,42 @@ exports.verifyToken = async function (req, res, next) {
   res.status(200).json({
     result: 'ok'
   });
+}
+
+exports.checkDuplicateId = async function (req, res, next) {
+  try {
+    let checkingId = req.params.id
+
+    let userInfo = await userModel.findOne(
+      { id: checkingId },
+      { id: 1 }
+    )
+
+    let isCanUse = (userInfo === null) ? true : false
+
+    res.status(200).json({isCanUse: isCanUse})
+  } catch (error) {
+    res.status(500).json({errorMessage: "server error"})
+    console.log(error)
+  }
+}
+
+exports.checkDuplicateNickname = async function (req, res, next) {
+  try {
+    let checkingNickname = req.params.nickname
+
+    let userInfo = await userModel.findOne(
+      { nickname: checkingNickname },
+      { nickname: 1 }
+    )
+
+    let isCanUse = (userInfo === null) ? true : false
+
+    res.status(200).json({isCanUse: isCanUse})
+  } catch (error) {
+    res.status(500).json({errorMessage: "server error"})
+    console.log(error)
+  }
 }
 
 async function establisFriendRelation (myObjectId, friendObjectId, chattingRoomId = null) {

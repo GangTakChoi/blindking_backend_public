@@ -13,6 +13,11 @@ router.get('/me', verifyToken, userControllers.getUserInfo);
 // 친구 목록
 router.get('/friends', verifyToken, userControllers.getFriendInfoList)
 
+// 아이디 중복 검사
+router.get('/id/duplicate-check/:id', userControllers.checkDuplicateId)
+// 닉네임 중복 검사
+router.get('/nickname/duplicate-check/:nickname', userControllers.checkDuplicateNickname)
+
 // 회원가입
 router.post('/', userControllers.addUser); 
 // 로그인 토큰발행
