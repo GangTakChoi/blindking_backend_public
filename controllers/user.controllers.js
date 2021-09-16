@@ -8,6 +8,8 @@ const questionListModel = require('../model/question_list_model')
 
 exports.addUser = async function (req, res, next) {
   try {
+    const crypto = require('crypto')
+
     const userId = req.body.id
     const userPw = req.body.pw
     const userPwRepeat = req.body.pwRepeat
@@ -65,6 +67,14 @@ exports.addUser = async function (req, res, next) {
       return
     }
 
+    const encryptedPassword = await crypto.pbkdf2Sync(
+      userPw, 
+      process.env.CRYPTO_SALT, 
+      Number(process.env.CRYPTO_REPETITION_NUMBER), 
+      Number(process.env.CRYPTO_KEY_LEN), 
+      process.env.CRYPTO_ALGORITHM,
+    ).toString(process.env.CRYPTO_ENCODING)
+
     const quesiontInfoList = await questionListModel.find({ isDelete: false }, { _id: 1 }).sort({ order: 1 })
 
     quesiontInfoList.forEach((element) => {
@@ -78,7 +88,7 @@ exports.addUser = async function (req, res, next) {
 
     const userInfo = {
       id: userId,
-      pw: userPw,
+      pw: encryptedPassword,
       nickname: userNickname,
       gender: userGender,
       questionList: userQuestionList,
@@ -219,11 +229,22 @@ exports.activeMatching = async (req, res, next) => {
 
 exports.createToken = async function (req, res, next) {
   try {
+    const crypto = require('crypto')
+
     const reqInfo = req.body
     const YOUR_SECRET_KEY = process.env.SECRET_KEY
     const userId = reqInfo.id
     const userPw = reqInfo.pw
-    const userInfo = await userModel.findOneByIdPw(userId, userPw)
+
+    const encryptedUserPw = await crypto.pbkdf2Sync(
+      userPw, 
+      process.env.CRYPTO_SALT, 
+      Number(process.env.CRYPTO_REPETITION_NUMBER), 
+      Number(process.env.CRYPTO_KEY_LEN), 
+      process.env.CRYPTO_ALGORITHM,
+    ).toString(process.env.CRYPTO_ENCODING)
+
+    const userInfo = await userModel.findOneByIdPw(userId, encryptedUserPw)
 
     if (userInfo !== null) {
       const token = jwt.sign(
@@ -233,7 +254,7 @@ exports.createToken = async function (req, res, next) {
           nickname: userInfo.nickname,
         },
         YOUR_SECRET_KEY,
-        {expiresIn: '3h'}
+        {expiresIn: '6h'}
       );
 
       res.cookie('token', token);
