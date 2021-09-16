@@ -279,16 +279,58 @@ exports.setSelfIntroduction = async function (req, res, next) {
     const userObjectId = res.locals.userObjectId
     const userBirthYear = Number(req.body.birthYear)
     const userMBTI = req.body.mbti
-    const userQuestionList = req.body.questionList
+    const reqUserQuestionList = req.body.questionList
 
     // 유저 정보
     let userUpdateInfo = {
       birthYear: userBirthYear,
       mbti: userMBTI,
-      questionList: userQuestionList,
+      questionList: [],
       region: {}
     }
 
+    // 질문 정보 유효성 검사
+    if (!Array.isArray(reqUserQuestionList)) {
+      res.status(400).json({ errorMessage: 'invaild request' });
+      return
+    }
+
+    let questionIdList = []
+    let userQuestionList = []
+    let isInvalidRequest= false
+
+    reqUserQuestionList.forEach((questionInfo) => {
+      if (typeof questionInfo.answer !== 'string') {
+        isInvalidRequest = true
+      }
+      if (questionInfo.answer.length > 5000) {
+        isInvalidRequest = true
+      }
+
+      userQuestionList.push({
+        answer: questionInfo.answer,
+        questionId: questionInfo.questionId,
+      })
+
+      questionIdList.push(questionInfo.questionId)
+    })
+
+    if (isInvalidRequest) {
+      res.status(400).json({ errorMessage: 'invaild request' });
+      return
+    }
+
+    let resultCount = await questionListModel.countDocuments({ _id: { $in:  questionIdList} })
+
+    if (questionIdList.length !== resultCount) {
+      res.status(400).json({ errorMessage: 'invaild request' });
+      return
+    }
+
+    // 질문 정보 저장
+    userUpdateInfo.questionList = userQuestionList
+    
+    // 출생년도 유효성 검사
     let nowDate = new Date();
     const fullAgeBirthYear = nowDate.getFullYear() - 19;	// 올해 성년 출생년도
 
@@ -297,9 +339,9 @@ exports.setSelfIntroduction = async function (req, res, next) {
       return
     }
 
+    // mbti 유효성 검사
     let mbtiInfo = await commonModel.findOne({key:'mbti'})
 
-    // mbti 유효성 검사
     if (!mbtiInfo.data.includes(userMBTI)) {
       res.status(400).json({ errorMessage: 'invaild request' });
       return
@@ -421,7 +463,7 @@ exports.getMachingPartnerList = async function (req, res, next) {
 
     // 연령대 필터
     if (!isNaN(searchAgeRange.max) || !isNaN(searchAgeRange.min)) {
-      userListfilter.birthYear = {
+      userListfilter['birthYear'] = {
         $gte: isNaN(searchAgeRange.max) ? 1900 : searchAgeRange.max,
         $lte: isNaN(searchAgeRange.min) ? 9999 : searchAgeRange.min
       }
