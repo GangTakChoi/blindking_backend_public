@@ -151,22 +151,30 @@ exports.writeBoardOfComment = async (req, res, next) => {
   try {
     let userId = res.locals.userObjectId
     let boardId = req.params.id
-    let content = req.body.content
     let nickname = res.locals.userNickname
+
+    if (!req.body.content || req.body.content.length > 5000) {
+      res.status(400).json({ errorMessage: 'invalid request' });
+      return
+    }
 
     let boardCommentInfo = {
       writerUserId: userId,
       nickname: nickname,
       boardId: boardId,
-      content: content,
+      content: req.body.content,
       isDelete: false,
     }
 
-    let savedCommentInfo = await boardCommentModel.createOrSave(boardCommentInfo)
-
-    if (!savedCommentInfo) {
-      throw('[writeBoardOfComment]' + '댓글 등록 실패')
+    let boardResult = await boardModel.findOne({ _id: boardId, isDelete: false }, { _id: 1 })
+    
+    // 해당 게시판 유효성 검사
+    if (!boardResult) {
+      res.status(400).json({ errorMessage: 'invalid request' });
+      return
     }
+
+    let savedCommentInfo = await boardCommentModel.createOrSave(boardCommentInfo)
 
     let filter = {
       boardId: boardId,
@@ -202,6 +210,26 @@ exports.writeBoardOfComment = async (req, res, next) => {
 
 exports.writeBoard = async (req, res, next) => {
   try {
+    if (!req.body.title.trim()) {
+      res.status(400).json({ errorMessage: '제목을 입력해주세요.' });
+      return
+    }
+
+    if (req.body.title.length > 100) {
+      res.status(400).json({ errorMessage: '제목은 100자 이내로 입력 가능합니다.' });
+      return
+    }
+
+    if (!req.body.content.trim()) {
+      res.status(400).json({ errorMessage: '내용을 입력해주세요.' });
+      return
+    }
+
+    if (!req.body.content.length > 50000) {
+      res.status(400).json({ errorMessage: '내용이 너무 깁니다.' });
+      return
+    }
+
     let boardInfo = {
       writerUserId: res.locals.userObjectId,
       nickname: res.locals.userNickname,
