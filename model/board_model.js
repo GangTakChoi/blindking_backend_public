@@ -6,6 +6,7 @@ const boardSchema = new mongoose.Schema({
   nickname: { type: String, required: true },
   title: { type: String, required: true },
   content: { type: String, required: true },
+  searchContent: { type: String, required: true },
   view: { type: Number, default: 0, required: true},
   like: { type: Number, default: 0, required: true},
   dislike: { type: Number, default: 0, required: true},

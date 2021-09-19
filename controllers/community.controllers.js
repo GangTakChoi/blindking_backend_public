@@ -21,9 +21,9 @@ exports.getBoardList = async (req, res, next) => {
       if (searchOption === 'title') {
         filter.$or = [{title: new RegExp(searchContent)}]
       } else if (searchOption === 'content') {
-        filter.$or = [{content: new RegExp(searchContent)}]
+        filter.$or = [{searchContent: new RegExp(searchContent)}]
       } else if (searchOption === 'title+content') {
-        filter.$or = [{title: new RegExp(searchContent)}, {content: new RegExp(searchContent)}]
+        filter.$or = [{title: new RegExp(searchContent)}, {searchContent: new RegExp(searchContent)}]
       } else if (searchOption === 'nickname') {
         filter.$or = [{nickname: new RegExp(searchContent)}]
       } else {
@@ -208,6 +208,66 @@ exports.writeBoardOfComment = async (req, res, next) => {
   }
 }
 
+exports.modifyBoard = async (req, res, next) => {
+  try {
+    if (!req.body.title.trim()) {
+      res.status(400).json({ errorMessage: '제목을 입력해주세요.' });
+      return
+    }
+
+    if (req.body.title.length > 100) {
+      res.status(400).json({ errorMessage: '제목은 100자 이내로 입력 가능합니다.' });
+      return
+    }
+
+    if (!req.body.content.trim()) {
+      res.status(400).json({ errorMessage: '내용을 입력해주세요.' });
+      return
+    }
+
+    if (!req.body.content.length > 50000) {
+      res.status(400).json({ errorMessage: '내용이 너무 깁니다.' });
+      return
+    }
+
+    let boardId = req.params.id
+    let myObjectId = res.locals.userObjectId
+
+    let boardInfo = await boardModel.findOne(
+      {
+        _id: boardId, 
+        writerUserId: myObjectId,
+        isDelete: false,
+      }
+    )
+
+    if (!boardInfo) {
+      res.status(400).json({errorMessage: 'invalid request'});
+      return
+    }
+
+    await boardModel.findOneAndUpdate(
+     {_id: boardId},
+     {
+      title: req.body.title,
+      content: req.body.content,
+      searchContent: req.body.content
+      .replace(/(<([^>]+)>)/ig," ")
+      .replace(/&lt;/ig, "<")
+      .replace(/&gt;/ig, ">")
+      .replace(/&amp;/ig, "&")
+     }
+    )
+
+    res.status(200).json({ result: 'success' });
+  } catch (err) {
+    console.log(err)
+    res.status(500).json({
+      result: 'server error'
+    });
+  }
+}
+
 exports.writeBoard = async (req, res, next) => {
   try {
     if (!req.body.title.trim()) {
@@ -235,6 +295,12 @@ exports.writeBoard = async (req, res, next) => {
       nickname: res.locals.userNickname,
       title: req.body.title,
       content: req.body.content,
+      searchContent: req.body.content
+      .replace(/(<([^>]+)>)/ig," ")
+      .replace(/&lt;/ig, "<")
+      .replace(/&gt;/ig, ">")
+      .replace(/&amp;/ig, "&")
+      ,
       view: 0,
       like: 0,
       dislike: 0,
@@ -426,6 +492,7 @@ exports.getBoardDetail = async (req, res, next) => {
     }
     
     let responseData = {
+      isMyBoard: String(boardInfo.writerUserId) === myObjectId,
       nickname: boardInfo.nickname,
       title: boardInfo.title,
       content: boardInfo.content,
