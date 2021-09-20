@@ -23,6 +23,8 @@ router.put('/board/:id/like-dislike', apiBoardLikeLimiter, verifyToken, communit
 // 게시글 수정
 router.put('/board/:id', verifyToken, communityControllers.modifyBoard);
 
+// 게시글 삭제
+router.delete('/board/:boardId', verifyToken, communityControllers.deleteBoard);
 // 댓글 삭제
 router.delete('/board/:boardId/comment/:commentId', verifyToken, communityControllers.deleteComment);
 

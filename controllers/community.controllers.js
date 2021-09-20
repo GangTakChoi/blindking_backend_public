@@ -208,6 +208,33 @@ exports.writeBoardOfComment = async (req, res, next) => {
   }
 }
 
+exports.deleteBoard = async (req, res, next) => {
+  try {
+    let boardId = req.params.boardId
+    let myObjectId = res.locals.userObjectId
+
+    let boardInfo = await boardModel.findOne(
+      { _id: boardId, writerUserId: myObjectId, isDelete: false },
+      { _id: 1 }
+    )
+
+    if (!boardInfo) {
+      res.status(400).json({ errorMessage: 'invalid request' })
+      return
+    }
+
+    await boardModel.findOneAndUpdate(
+      { _id: boardInfo._id },
+      { isDelete: true }
+    )
+
+    res.status(200).json({ result: 'success' })
+  } catch (error) {
+    console.log(error)
+    res.status(500).json({ errorMessage: 'server error' })
+  }
+}
+
 exports.modifyBoard = async (req, res, next) => {
   try {
     if (!req.body.title.trim()) {
