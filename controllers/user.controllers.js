@@ -1,5 +1,7 @@
 const jwt = require('jsonwebtoken')
 const userModel = require('../model/user_model')
+const boardModel = require('../model/board_model')
+const boardCommentModel = require('../model/board_comment')
 const userFriendsModel = require('../model/user_friends_model')
 const chattingRoomModel = require('../model/chatting_room')
 const areaModel = require('../model/area_model')
@@ -387,7 +389,60 @@ exports.setSelfIntroduction = async function (req, res, next) {
   }
 };
 
-exports.getUserInfo = async function (req, res, next) {
+exports.getMypageInfo = async function (req, res, next) {
+  try {
+    let myObjectId = res.locals.userObjectId
+    let boardSkip = Number(req.query.boardSkip)
+    boardSkip = isNaN(boardSkip) ? 0 : boardSkip
+    let commentSkip = Number(req.query.commentSkip)
+    commentSkip = isNaN(commentSkip) ? 0 : commentSkip
+    let limit = 10
+
+    let isPassBoardInfo = commentSkip !== 0 ? true : false
+    let isPassCommentInfo = boardSkip !== 0 ? true : false
+
+    let boardList = []
+    let boardCommentList = []
+
+    if (!isPassBoardInfo) {
+      boardList = await boardModel.find(
+        { 
+          writerUserId: myObjectId,
+          isDelete: false
+        },
+        { title:1, view:1, commentCount: 1 }
+      )
+      .skip(boardSkip)
+      .limit(limit)
+      .sort({ _id: -1 })
+    }
+
+    if (!isPassCommentInfo) {
+      boardCommentList = await boardCommentModel.find(
+        {
+          writerUserId: myObjectId,
+          isDelete: false
+        },
+        { content: 1, boardId: 1 }
+      )
+      .populate('boardId', { title: 1 })
+      .skip(commentSkip)
+      .limit(limit)
+      .sort({ _id: -1 })
+    }
+
+    res.status(200).json({
+      result: 'success',
+      boardList: boardList,
+      commentList: boardCommentList,
+    })
+  } catch (err) {
+    console.log(err)
+    res.status(500).json({ errorMessage: 'server error' })
+  }
+}
+
+exports.getSelfIntroduction = async function (req, res, next) {
   try {
     const userObjectId = res.locals.userObjectId
 

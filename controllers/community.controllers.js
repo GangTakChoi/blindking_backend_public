@@ -283,6 +283,7 @@ exports.modifyBoard = async (req, res, next) => {
       .replace(/&lt;/ig, "<")
       .replace(/&gt;/ig, ">")
       .replace(/&amp;/ig, "&")
+      .replace(/&nbsp;/ig, " ")
      }
     )
 
@@ -327,6 +328,7 @@ exports.writeBoard = async (req, res, next) => {
       .replace(/&lt;/ig, "<")
       .replace(/&gt;/ig, ">")
       .replace(/&amp;/ig, "&")
+      .replace(/&nbsp;/ig, " ")
       ,
       view: 0,
       like: 0,

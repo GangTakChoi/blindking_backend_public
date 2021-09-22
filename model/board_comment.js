@@ -4,7 +4,7 @@ const mongoose = require('mongoose');
 const boardCommentSchema = new mongoose.Schema({
   writerUserId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   nickname: { type: String, required: true },
-  boardId: { type: mongoose.Schema.Types.ObjectId, ref: 'Board', required: true },
+  boardId: { type: mongoose.Schema.Types.ObjectId, ref: 'board', required: true },
   content: { type: String, required: true },
   isDelete: { type: Boolean, default: false, required: true },
 },
@@ -17,7 +17,7 @@ const boardCommentSchema = new mongoose.Schema({
 }
 );
 
-boardCommentSchema.index( {writerUserId: 1}, { boardId: 1 }, { isDelete: 1 });
+boardCommentSchema.index( { writerUserId: 1 }, { boardId: 1 }, { isDelete: 1 });
 
 boardCommentSchema.statics.createOrSave = function (payload) {
   // this === Model

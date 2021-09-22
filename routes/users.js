@@ -8,10 +8,12 @@ var { verifyToken } = require('../middlewares/authorization')
 router.get('/maching-partners', verifyToken, userControllers.getMachingPartnerList);
 // 특정 파트너 자세한 정보
 router.get('/maching-partners/:id', verifyToken, userControllers.getMachingPartnerDetail);
-// 유저 정보
-router.get('/me', verifyToken, userControllers.getUserInfo);
+// 자기소개 정보
+router.get('/self-introduction', verifyToken, userControllers.getSelfIntroduction);
 // 친구 목록
-router.get('/friends', verifyToken, userControllers.getFriendInfoList)
+router.get('/friends', verifyToken, userControllers.getFriendInfoList);
+// 마이페이지 정보
+router.get('/mypage', verifyToken, userControllers.getMypageInfo);
 
 // 아이디 중복 검사
 router.get('/id/duplicate-check/:id', userControllers.checkDuplicateId)
