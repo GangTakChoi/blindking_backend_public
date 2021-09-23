@@ -296,6 +296,60 @@ exports.modifyBoard = async (req, res, next) => {
   }
 }
 
+exports.getBoardComment = async (req, res, next) => {
+  try {
+    let boardId = req.params.boardId
+    let order = req.query.order
+    let myObjectId = res.locals.userObjectId
+
+    // 게시글 유효성 검사
+    let boardInfo = await boardModel.findOne({ _id: boardId, isDelete: false }, { _id: 1 })
+
+    if (!boardInfo) {
+      res.status(400).json({ errorMessage: "invalid request" })
+      return
+    }
+
+    let sortInfo
+
+    if (order === 'latest') {
+      sortInfo = { _id: -1 }
+    } else if (order === 'popular') {
+      sortInfo = { like: -1, _id: -1 }
+    } else {
+      sortInfo = { _id: -1 }
+    }
+
+    // 댓글 조회
+    let rawBoardCommentList = await boardCommentModel.find({ boardId: boardId, isDelete: false })
+    .sort(sortInfo)
+
+    let boardCommentInfoList = []
+
+    rawBoardCommentList.forEach((commentInfo) => {
+
+      let commentInfoTemp = {
+        objectId: commentInfo._id,
+        isMine:  String(commentInfo.writerUserId) === myObjectId ? true : false,
+        nickname: commentInfo.nickname,
+        content: commentInfo.content,
+        createdDate: commentInfo.createdAt,
+      }
+
+      boardCommentInfoList.push(commentInfoTemp)
+    })
+
+    let response = {
+      commentList: boardCommentInfoList
+    }
+
+    res.status(200).json(response)
+  } catch (error) {
+    console.log(error)
+    res.status(500).json({ errorMessage: 'server error' })
+  }
+}
+
 exports.writeBoard = async (req, res, next) => {
   try {
     if (!req.body.title.trim()) {
@@ -493,7 +547,12 @@ exports.getBoardDetail = async (req, res, next) => {
     let boardId = req.params.id
     let myObjectId = res.locals.userObjectId
 
-    boardInfo = await boardModel.findOne({ _id: boardId})
+    let boardInfo = await boardModel.findOne({ _id: boardId, isDelete: false})
+
+    if (!boardInfo) {
+      res.status(400).json({ errorMessage: '삭제된 게시글 입니다.' })
+      return
+    }
 
     await boardModel.findOneAndUpdate(
       { _id: boardId },

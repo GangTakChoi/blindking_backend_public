@@ -10,6 +10,8 @@ var { verifyToken } = require('../middlewares/authorization')
 router.get('/board/:id', verifyToken, communityControllers.getBoardDetail);
 // 게시글 리스트 조회
 router.get('/board-list', verifyToken, communityControllers.getBoardList);
+// 게시글 댓글 조회
+router.get('/board/:boardId/comment', verifyToken, communityControllers.getBoardComment)
 
 // 게시글 이미지 업로드
 router.post('/image-upload', verifyToken, communityControllers.fileupload);

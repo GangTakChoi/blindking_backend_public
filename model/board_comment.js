@@ -6,6 +6,8 @@ const boardCommentSchema = new mongoose.Schema({
   nickname: { type: String, required: true },
   boardId: { type: mongoose.Schema.Types.ObjectId, ref: 'board', required: true },
   content: { type: String, required: true },
+  like: { type: Number, default: 0, required: true},
+  dislike: { type: Number, default: 0, required: true},
   isDelete: { type: Boolean, default: false, required: true },
 },
 {

@@ -410,7 +410,7 @@ exports.getMypageInfo = async function (req, res, next) {
           writerUserId: myObjectId,
           isDelete: false
         },
-        { title:1, view:1, commentCount: 1 }
+        { title:1, view:1, commentCount: 1, like: 1, dislike: 1, createdAt: 1 }
       )
       .skip(boardSkip)
       .limit(limit)
@@ -423,7 +423,7 @@ exports.getMypageInfo = async function (req, res, next) {
           writerUserId: myObjectId,
           isDelete: false
         },
-        { content: 1, boardId: 1 }
+        { content: 1, boardId: 1, createdAt: 1, like: 1 }
       )
       .populate('boardId', { title: 1 })
       .skip(commentSkip)
