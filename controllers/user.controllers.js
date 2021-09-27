@@ -256,7 +256,7 @@ exports.createToken = async function (req, res, next) {
           nickname: userInfo.nickname,
         },
         YOUR_SECRET_KEY,
-        {expiresIn: '6h'}
+        {expiresIn: '12h'}
       );
 
       res.cookie('token', token);

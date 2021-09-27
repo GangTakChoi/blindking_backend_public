@@ -14,7 +14,7 @@ const verifyToken = (req, res, next) => {
       res.status(401).json({ errorMessage: 'unauthorized' });
     }
   } catch (err) {
-    res.status(401).json({ errorMessage: 'token expired' });
+    res.status(401).json({ errorMessage: '로그인 세션이 만료되었습니다.' });
   }
 };
 

@@ -1,6 +1,7 @@
 const boardModel = require('../model/board_model')
 const boardLikeModel = require('../model/board_like_model')
 const boardCommentModel = require('../model/board_comment')
+const commentLikeModel = require('../model/comment_like_model')
 
 exports.getBoardList = async (req, res, next) => {
   try {
@@ -194,6 +195,8 @@ exports.writeBoardOfComment = async (req, res, next) => {
       nickname: nickname,
       createdDate: savedCommentInfo.createdAt,
       content: savedCommentInfo.content,
+      like: savedCommentInfo.like,
+      evaluation: 'none',
     }
 
     res.status(200).json({
@@ -324,16 +327,25 @@ exports.getBoardComment = async (req, res, next) => {
     let rawBoardCommentList = await boardCommentModel.find({ boardId: boardId, isDelete: false })
     .sort(sortInfo)
 
+    // 댓글 좋아요, 싫어요 정보 조회
+    let commentEvaluatInfoList = await commentLikeModel.find({ userId: myObjectId, boardId: boardId })
+
     let boardCommentInfoList = []
 
     rawBoardCommentList.forEach((commentInfo) => {
 
+      const thisCommentEvaluatInfo = commentEvaluatInfoList.find((commentEvaluatInfo) => {
+        if (String(commentEvaluatInfo.commentId) === String(commentInfo._id)) return true
+      })
+
       let commentInfoTemp = {
-        objectId: commentInfo._id,
+        objectId: String(commentInfo._id),
         isMine:  String(commentInfo.writerUserId) === myObjectId ? true : false,
         nickname: commentInfo.nickname,
         content: commentInfo.content,
+        like: commentInfo.like,
         createdDate: commentInfo.createdAt,
+        evaluation: thisCommentEvaluatInfo === undefined ? 'none' : thisCommentEvaluatInfo.evaluation
       }
 
       boardCommentInfoList.push(commentInfoTemp)
@@ -401,6 +413,147 @@ exports.writeBoard = async (req, res, next) => {
     res.status(500).json({
       result: 'server error'
     });
+  }
+}
+
+exports.putCommentLike = async (req, res, next) => {
+  try {
+    let myObjectId = res.locals.userObjectId
+    let boardId = req.params.boardId
+    let commentId = req.params.commentId
+    let status = req.body.status
+
+    if (status !== 'like' && status !== 'dislike') {
+      res.status(400).json({ errorMessage: 'invalid requset' })
+      return
+    }
+
+    // boardId, commentId 유효성 검사 패스
+
+    
+    let updatedCommentInfo
+    let updatedCommentLikeInfo
+    let commentLikeFilter = { userId: myObjectId, commentId: commentId }
+    let commentLikeInfo = await commentLikeModel.findOne(commentLikeFilter)
+
+    if (!commentLikeInfo) {
+      let saveCommentLikeInfo = {
+        userId: myObjectId,
+        boardId: boardId,
+        commentId: commentId,
+        evaluation: status,
+      }
+
+      let tempUpdatedCommentInfo = await commentLikeModel.createOrSave(saveCommentLikeInfo)
+
+      updatedCommentLikeInfo = {
+        commentId: tempUpdatedCommentInfo.commentId,
+        evaluation: tempUpdatedCommentInfo.evaluation,
+        _id: tempUpdatedCommentInfo._id
+      }
+
+      let incData = {}
+
+      if (status === 'like') incData.like = 1
+      else incData.dislike = 1
+
+      updatedCommentInfo = await boardCommentModel.findOneAndUpdate(
+        { _id: commentId } ,
+        { '$inc': incData },
+        { fields: { like: 1, dislike: 1 }, new: true }
+      )
+    } else {
+      if (status === 'like') {
+        if (commentLikeInfo.evaluation === 'like') {
+          updatedCommentLikeInfo = await commentLikeModel.findOneAndUpdate(
+            commentLikeFilter,
+            { evaluation: 'none' },
+            { fields: { commentId: 1, evaluation: 1 }, new: true }
+          )
+
+          updatedCommentInfo = await boardCommentModel.findOneAndUpdate(
+            { _id: commentId },
+            { '$inc': { 'like': -1 }},
+            { fields: { like: 1, dislike: 1 }, new: true }
+          )
+        } else if (commentLikeInfo.evaluation === 'dislike') {
+          updatedCommentLikeInfo = await commentLikeModel.findOneAndUpdate(
+            commentLikeFilter,
+            { evaluation: 'like' },
+            { fields: { commentId: 1, evaluation: 1 }, new: true }
+          )
+
+          updatedCommentInfo = await boardCommentModel.findOneAndUpdate(
+            { _id: commentId },
+            { '$inc': { 'like': 1, 'dislike': -1 }},
+            { fields: { like: 1, dislike: 1 }, new: true }
+          )
+        } else if (commentLikeInfo.evaluation === 'none') {
+          updatedCommentLikeInfo = await commentLikeModel.findOneAndUpdate(
+            commentLikeFilter,
+            { evaluation: 'like' },
+            { fields: { commentId: 1, evaluation: 1 }, new: true }
+          )
+
+          updatedCommentInfo = await boardCommentModel.findOneAndUpdate(
+            { _id: commentId },
+            { '$inc': { 'like': 1 }},
+            { fields: { like: 1, dislike: 1 }, new: true }
+          )
+        }
+      } else if (status === 'dislike') {
+        if (commentLikeInfo.evaluation === 'like') {
+          updatedCommentLikeInfo = await commentLikeModel.findOneAndUpdate(
+            commentLikeFilter,
+            { evaluation: 'dislike' },
+            { fields: { commentId: 1, evaluation: 1 }, new: true }
+          )
+
+          updatedCommentInfo = await boardCommentModel.findOneAndUpdate(
+            { _id: commentId },
+            { '$inc': { 'like': -1, 'dislike': 1 }},
+            { fields: { like: 1, dislike: 1 }, new: true }
+          )
+        } else if (commentLikeInfo.evaluation === 'dislike') {
+          updatedCommentLikeInfo = await commentLikeModel.findOneAndUpdate(
+            commentLikeFilter,
+            { evaluation: 'none' },
+            { fields: { commentId: 1, evaluation: 1 }, new: true }
+          )
+
+          updatedCommentInfo = await boardCommentModel.findOneAndUpdate(
+            { _id: commentId },
+            { '$inc': { 'dislike': -1 }},
+            { fields: { like: 1, dislike: 1 }, new: true }
+          )
+        } else if (commentLikeInfo.evaluation === 'none') {
+          updatedCommentLikeInfo = await commentLikeModel.findOneAndUpdate(
+            commentLikeFilter,
+            { evaluation: 'none' },
+            { fields: { commentId: 1, evaluation: 1 }, new: true }
+          )
+
+          updatedCommentInfo = await boardCommentModel.findOneAndUpdate(
+            { _id: commentId },
+            { '$inc': { 'dislike': 1 }},
+            { fields: { like: 1, dislike: 1 }, new: true }
+          )
+        }
+      }
+    }
+
+    let response = {
+      result: 'success',
+      commentInfo: {
+        like: updatedCommentInfo.like,
+        evaluation: updatedCommentLikeInfo.evaluation
+      },
+    }
+
+    res.status(200).json(response)
+  } catch (error) {
+    console.log(error)
+    res.status(500).json({errorMessage: 'server error'})
   }
 }
 
@@ -558,26 +711,6 @@ exports.getBoardDetail = async (req, res, next) => {
       { _id: boardId },
       { view: boardInfo.view + 1 }
     )
-
-    let boardCommentInfoList = []
-
-    result = await boardCommentModel
-    .find({boardId: boardId, isDelete: false})
-    .sort({ _id: -1 })
-
-    if (result && Array.isArray(result) && result.length !== 0) {
-      result.forEach((data) => {
-        let commentInfo = {
-          objectId: data._id,
-          isMine:  String(data.writerUserId) === myObjectId ? true : false,
-          nickname: data.nickname,
-          content: data.content,
-          createdDate: data.createdAt,
-        }
-
-        boardCommentInfoList.push(commentInfo)
-      })
-    }
     
     let responseData = {
       isMyBoard: String(boardInfo.writerUserId) === myObjectId,
@@ -588,7 +721,6 @@ exports.getBoardDetail = async (req, res, next) => {
       like: boardInfo.like,
       dislike: boardInfo.dislike,
       createdAt: boardInfo.createdAt,
-      boardCommentInfoList: boardCommentInfoList,
     }
 
     boardLikeInfo = await boardLikeModel.findOne({
