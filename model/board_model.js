@@ -24,7 +24,7 @@ const boardSchema = new mongoose.Schema({
 }
 );
 
-boardSchema.index({title: 'text', content: 'text', nickname: 'text', isDelete: 1, isShow: 1, category: 1})
+boardSchema.index({title: 'text', content: 'text', nickname: 'text', isDelete: 1, isShow: 1, category: 1, like: -1, view: -1})
 
 boardSchema.statics.createOrSave = function (payload) {
   // this === Model

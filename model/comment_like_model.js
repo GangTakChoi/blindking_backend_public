@@ -15,6 +15,7 @@ const commentLikeSchema = new mongoose.Schema({
 );
 
 commentLikeSchema.index({ userId: 1, commentId: 1 }, { unique: true });
+commentLikeSchema.index({ evaluation: 'text' });
 
 commentLikeSchema.statics.createOrSave = function (payload) {
   // this === Model

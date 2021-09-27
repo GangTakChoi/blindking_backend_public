@@ -394,17 +394,32 @@ exports.getMypageInfo = async function (req, res, next) {
     let myObjectId = res.locals.userObjectId
     let boardSkip = Number(req.query.boardSkip)
     boardSkip = isNaN(boardSkip) ? 0 : boardSkip
+    let boardSort = req.query.boardSort
     let commentSkip = Number(req.query.commentSkip)
     commentSkip = isNaN(commentSkip) ? 0 : commentSkip
+    let commentSort = req.query.commentSort
+    let typeList = req.query.type !== undefined ? req.query.type.split(',') : []
     let limit = 10
 
-    let isPassBoardInfo = commentSkip !== 0 ? true : false
-    let isPassCommentInfo = boardSkip !== 0 ? true : false
+    let isLoadBoardInfo = typeList.includes('board')
+    let isCommentInfo = typeList.includes('comment')
 
     let boardList = []
     let boardCommentList = []
 
-    if (!isPassBoardInfo) {
+    if (isLoadBoardInfo) {
+      let boardSortInfo
+
+      if (boardSort === 'latest') {
+        boardSortInfo = { _id: -1 }
+      } else if (boardSort === 'popular') {
+        boardSortInfo = { like: -1, _id: -1 }
+      } else if (boardSort === 'view') {
+        boardSortInfo = { view: -1, _id: -1 }
+      } else {
+        boardSortInfo = { _id: -1 }
+      }
+
       boardList = await boardModel.find(
         { 
           writerUserId: myObjectId,
@@ -414,10 +429,20 @@ exports.getMypageInfo = async function (req, res, next) {
       )
       .skip(boardSkip)
       .limit(limit)
-      .sort({ _id: -1 })
+      .sort(boardSortInfo)
     }
 
-    if (!isPassCommentInfo) {
+    if (isCommentInfo) {
+      let commentSortInfo
+
+      if (commentSort === 'latest') {
+        commentSortInfo = { _id: -1 }
+      } else if (commentSort === 'popular') {
+        commentSortInfo = { like: -1, _id: -1 }
+      } else {
+        commentSortInfo = { _id: -1 }
+      }
+
       boardCommentList = await boardCommentModel.find(
         {
           writerUserId: myObjectId,
@@ -428,7 +453,7 @@ exports.getMypageInfo = async function (req, res, next) {
       .populate('boardId', { title: 1 })
       .skip(commentSkip)
       .limit(limit)
-      .sort({ _id: -1 })
+      .sort(commentSortInfo)
     }
 
     res.status(200).json({
