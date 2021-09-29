@@ -1,6 +1,6 @@
 const boardModel = require('../model/board_model')
 const boardLikeModel = require('../model/board_like_model')
-const boardCommentModel = require('../model/board_comment')
+const boardCommentModel = require('../model/comment_model')
 const commentLikeModel = require('../model/comment_like_model')
 
 exports.getBoardList = async (req, res, next) => {
@@ -148,23 +148,135 @@ exports.deleteComment = async (req, res, next) => {
   }
 }
 
+exports.registSubComment = async (req, res, next) => {
+  try {
+    let boardId = req.params.boardId
+    let rootCommentId = req.params.commentId
+    let nickname = res.locals.userNickname
+    let userId = res.locals.userObjectId
+
+    if (!req.body.content || typeof req.body.content !== 'string' || req.body.content.length > 5000) {
+      res.status(400).json({ errorMessage: 'invalid request' });
+      return
+    }
+
+    let rootCommentInfo = await boardCommentModel.findOne({ _id: rootCommentId, rootCommentId: null, boardId: boardId, isDelete: false })
+
+    if (!rootCommentInfo) {
+      res.status(400).json({ errorMessage: '삭제된 댓글입니다.' })
+      return
+    }
+
+    let subCommentInfo = {
+      rootCommentId: rootCommentId,
+      writerUserId: userId,
+      nickname: nickname,
+      boardId: boardId,
+      content: req.body.content,
+      isDelete: false,
+    }
+
+    let savedCommentInfo = await boardCommentModel.createOrSave(subCommentInfo)
+
+    let filter = {
+      boardId: boardId,
+      isDelete: false
+    }
+
+    // 게시판 댓글 갯수 갱신
+    let commentCount = await boardCommentModel.countDocuments(filter)
+
+    await boardModel.findOneAndUpdate(
+      {_id: boardId},
+      {commentCount: commentCount},
+    )
+
+    // 댓글의 대댓글 갯수 갱신
+    filter = {
+      rootCommentId: rootCommentId,
+      isDelete: false,
+    }
+
+    let subCommentCount = await boardCommentModel.countDocuments(filter)
+
+    await boardCommentModel.findOneAndUpdate(
+      { _id: rootCommentId },
+      { subCommentCount: subCommentCount }
+    )
+
+    let commentInfo = {
+      objectId: savedCommentInfo._id,
+      isMine: true,
+      nickname: nickname,
+      createdDate: savedCommentInfo.createdAt,
+      content: savedCommentInfo.content,
+      like: savedCommentInfo.like,
+      evaluation: 'none',
+    }
+
+    res.status(200).json({
+      result: 'success',
+      commentInfo: commentInfo,
+    });
+
+  } catch (error) {
+    console.log(error)
+    res.status(500).json({ errorMessage: 'server error' })
+  }
+}
+
+exports.getSubComment = async (req, res, next) => {
+  try {
+    let myObjectId = res.locals.userObjectId
+    let boardId = req.params.boardId
+    let rootCommentId = req.params.rootCommentId
+
+    // 루트 댓글 유효성 검사
+    let rootCommentInfo = await boardCommentModel.findOne({ _id: rootCommentId, rootCommentId: null, isDelete: false }, { _id: 1 })
+
+    if (!rootCommentInfo) {
+      res.status(400).json({ errorMessage: 'invalid request' })
+      return
+    }
+
+    let rawSubCommentList = await boardCommentModel.find({ rootCommentId: rootCommentId, isDelete: false })
+    .sort({_id: 1})
+
+    let subCommentList = []
+
+    rawSubCommentList.forEach((subCommentInfo) => {
+      let tempSubCommentInfo = {
+        objectId: String(subCommentInfo._id),
+        isMine:  String(subCommentInfo.writerUserId) === myObjectId ? true : false,
+        nickname: subCommentInfo.nickname,
+        content: subCommentInfo.content,
+        like: subCommentInfo.like,
+        subCommentCount: subCommentInfo.subCommentCount,
+        createdDate: subCommentInfo.createdAt,
+        evaluation: 'none'
+      }
+
+      subCommentList.push(tempSubCommentInfo)
+    })
+
+    
+
+    res.status(200).json({ result: 'success', subCommentList: subCommentList })
+  } catch (error) {
+    console.log(error)
+    res.status(500).json({ errorMessage: 'server error' })
+  }
+}
+
 exports.writeBoardOfComment = async (req, res, next) => {
   try {
     let userId = res.locals.userObjectId
     let boardId = req.params.id
     let nickname = res.locals.userNickname
 
-    if (!req.body.content || req.body.content.length > 5000) {
+    if (!req.body.content || typeof req.body.content !== 'string' || req.body.content.length > 5000) {
       res.status(400).json({ errorMessage: 'invalid request' });
       return
-    }
-
-    let boardCommentInfo = {
-      writerUserId: userId,
-      nickname: nickname,
-      boardId: boardId,
-      content: req.body.content,
-      isDelete: false,
     }
 
     let boardResult = await boardModel.findOne({ _id: boardId, isDelete: false }, { _id: 1 })
@@ -173,6 +285,15 @@ exports.writeBoardOfComment = async (req, res, next) => {
     if (!boardResult) {
       res.status(400).json({ errorMessage: 'invalid request' });
       return
+    }
+
+    let boardCommentInfo = {
+      rootCommentId: null,
+      writerUserId: userId,
+      nickname: nickname,
+      boardId: boardId,
+      content: req.body.content,
+      isDelete: false,
     }
 
     let savedCommentInfo = await boardCommentModel.createOrSave(boardCommentInfo)
@@ -324,7 +445,7 @@ exports.getBoardComment = async (req, res, next) => {
     }
 
     // 댓글 조회
-    let rawBoardCommentList = await boardCommentModel.find({ boardId: boardId, isDelete: false })
+    let rawBoardCommentList = await boardCommentModel.find({ rootCommentId: null, boardId: boardId, isDelete: false })
     .sort(sortInfo)
 
     // 댓글 좋아요, 싫어요 정보 조회
@@ -344,6 +465,7 @@ exports.getBoardComment = async (req, res, next) => {
         nickname: commentInfo.nickname,
         content: commentInfo.content,
         like: commentInfo.like,
+        subCommentCount: commentInfo.subCommentCount,
         createdDate: commentInfo.createdAt,
         evaluation: thisCommentEvaluatInfo === undefined ? 'none' : thisCommentEvaluatInfo.evaluation
       }

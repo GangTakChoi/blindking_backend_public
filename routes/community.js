@@ -12,6 +12,8 @@ router.get('/board/:id', verifyToken, communityControllers.getBoardDetail);
 router.get('/board-list', verifyToken, communityControllers.getBoardList);
 // 게시글 댓글 조회
 router.get('/board/:boardId/comment', verifyToken, communityControllers.getBoardComment)
+// 게시글 대댓글 조회
+router.get('/board/:boardId/comment/:rootCommentId/sub-comment', verifyToken, communityControllers.getSubComment)
 
 // 게시글 이미지 업로드
 router.post('/image-upload', verifyToken, communityControllers.fileupload);
@@ -19,6 +21,8 @@ router.post('/image-upload', verifyToken, communityControllers.fileupload);
 router.post('/board', verifyToken, communityControllers.writeBoard);
 // 댓글 작성
 router.post('/board/:id/comment', verifyToken, communityControllers.writeBoardOfComment);
+// 대-댓글 작성
+router.post('/board/:boardId/comment/:commentId/sub-comment', verifyToken, communityControllers.registSubComment)
 
 // 게시글 좋아요, 싫어요
 router.put('/board/:id/like-dislike', apiBoardLikeLimiter, verifyToken, communityControllers.putBoardLike);

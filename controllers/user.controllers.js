@@ -1,7 +1,7 @@
 const jwt = require('jsonwebtoken')
 const userModel = require('../model/user_model')
 const boardModel = require('../model/board_model')
-const boardCommentModel = require('../model/board_comment')
+const boardCommentModel = require('../model/comment_model')
 const userFriendsModel = require('../model/user_friends_model')
 const chattingRoomModel = require('../model/chatting_room')
 const areaModel = require('../model/area_model')
@@ -392,12 +392,15 @@ exports.setSelfIntroduction = async function (req, res, next) {
 exports.getMypageInfo = async function (req, res, next) {
   try {
     let myObjectId = res.locals.userObjectId
+
     let boardSkip = Number(req.query.boardSkip)
     boardSkip = isNaN(boardSkip) ? 0 : boardSkip
     let boardSort = req.query.boardSort
+
     let commentSkip = Number(req.query.commentSkip)
     commentSkip = isNaN(commentSkip) ? 0 : commentSkip
     let commentSort = req.query.commentSort
+
     let typeList = req.query.type !== undefined ? req.query.type.split(',') : []
     let limit = 10
 
