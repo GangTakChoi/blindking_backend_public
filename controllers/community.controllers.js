@@ -107,14 +107,11 @@ exports.deleteComment = async (req, res, next) => {
     let commentId = req.params.commentId
     let myObjectId = res.locals.userObjectId
 
-    let commentInfo = await boardCommentModel.findOne({_id: commentId})
-    .populate('writerUserId', '_id')
+    let commentInfo = await boardCommentModel.findOne({_id: commentId, writerUserId: myObjectId, isDelete: false}, { rootCommentId: 1, subCommentCount: 1 })
 
     // 유효성 검사
-    if (!commentInfo || String(commentInfo.writerUserId._id) !== myObjectId) {
-      res.status(400).json({
-        result: 'invalid request'
-      });
+    if (!commentInfo) {
+      res.status(400).json({ errorMessage: 'invalid request' });
       return
     }
 
@@ -123,6 +120,20 @@ exports.deleteComment = async (req, res, next) => {
       {_id: commentId},
       {isDelete: true},
     )
+
+    let rootCommentId = commentInfo.rootCommentId
+    let isSubComment = rootCommentId !== null ? true : false
+
+    if (isSubComment) {
+      await boardCommentModel.findOneAndUpdate(
+        {_id: rootCommentId},
+        { '$inc': { 'subCommentCount': -1 }},
+      )
+    }
+
+    if (!isSubComment && commentInfo.subCommentCount > 0) {
+      await boardCommentModel.updateMany({rootCommentId: commentId}, {$set: { isDelete: true }})
+    }
 
     let filter = {
       boardId: boardId,
@@ -139,6 +150,8 @@ exports.deleteComment = async (req, res, next) => {
 
     res.status(200).json({
       result: 'success',
+      isSubComment: isSubComment,
+      rootCommentId: rootCommentId
     });
   } catch (e) {
     console.log(e)
