@@ -36,6 +36,7 @@ const usersSchema = Schema({
   questionList: [questionInfo],
   region: regionInfoSchema,
   isDelete: { type: Boolean, required: true, default: false },
+  roleName: { type: String, required: true, default: "user", enum: ["user", "admin"] },
 },
 {
   timestamps: true,

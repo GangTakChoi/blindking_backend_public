@@ -264,6 +264,7 @@ exports.createToken = async function (req, res, next) {
       res.cookie('nickname', userInfo.nickname);
       res.cookie('isActiveMatching', userInfo.isActiveMatching);
       res.cookie('matchingTopDisplayUseingTime', userInfo.matchingTopDisplayUseingTime.getTime());
+      res.cookie('roleName', userInfo.roleName)
       
       res.status(201).json({
         result: 'ok'

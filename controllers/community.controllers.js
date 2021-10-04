@@ -2,6 +2,8 @@ const boardModel = require('../model/board_model')
 const boardLikeModel = require('../model/board_like_model')
 const boardCommentModel = require('../model/comment_model')
 const commentLikeModel = require('../model/comment_like_model')
+const categoryModel = require('../model/board_category_model')
+const userModel = require('../model/user_model')
 
 exports.getBoardList = async (req, res, next) => {
   try {
@@ -13,6 +15,7 @@ exports.getBoardList = async (req, res, next) => {
     let countPerPage = Number(req.query.countPerPage)
     let searchOption = req.query.searchOption
     let searchContent = req.query.searchContent
+    let categoryId = req.query.categoryId
 
     // https://ip99202.github.io/posts/nodejs,-mongodb-%EA%B2%8C%EC%8B%9C%ED%8C%90-%EA%B2%80%EC%83%89-%EA%B8%B0%EB%8A%A5/
     // 참고
@@ -28,12 +31,17 @@ exports.getBoardList = async (req, res, next) => {
       } else if (searchOption === 'nickname') {
         filter.$or = [{nickname: new RegExp(searchContent)}]
       } else {
-        res.status(400).json({
-          errorMessage: 'bad request'
-        })
+        res.status(400).json({errorMessage: 'bad request'})
         return
       }
     }
+
+    if (!categoryId) {
+      let categoryInfo = await categoryModel.find({},{_id: 1}).limit(1)
+      categoryId = categoryInfo[0]._id
+    }
+
+    filter.$and.push({ categoryId: categoryId })
 
     let boardList = await boardModel
     .find(filter)
@@ -65,6 +73,7 @@ exports.getBoardList = async (req, res, next) => {
     res.status(200).json({
       boardList: responseData,
       lastPageNumber: lastPageNumber,
+      categoryId: categoryId
     })
   } catch (err) {
     console.log(err)
@@ -158,6 +167,138 @@ exports.deleteComment = async (req, res, next) => {
     res.status(500).json({
       result: 'server error'
     });
+  }
+}
+
+exports.getCategory = async (req, res, next) => {
+  try {
+    let categoryList = await categoryModel.find({isDelete: false}, {type: 1, name: 1})
+
+    let normalCategory = []
+    let adminCategory = []
+
+    categoryList.forEach((categoryInfo) => {
+      if (categoryInfo.type === 'admin') adminCategory.push(categoryInfo)
+      if (categoryInfo.type === 'normal') normalCategory.push(categoryInfo)
+    })
+
+    res.status(200).json({ normalCategory: normalCategory, adminCategory: adminCategory })
+  } catch (error) {
+    console.log(error)
+    res.status(500).json({ errorMessage: 'server error' })
+  }
+}
+
+exports.deleteCategory = async (req, res, next) => {
+  try {
+    let myObjectId = res.locals.userObjectId
+    let categoryId = req.params.categoryId
+
+    let userInfo = await userModel.findOne({_id: myObjectId}, {roleName: 1})
+
+    if (userInfo.roleName !== 'admin') {
+      res.status(400).json({errorMessage: 'invalid request'})
+      return
+    }
+
+    await categoryModel.findOneAndUpdate({ _id: categoryId }, { isDelete: true })
+
+    res.status(200).json({ result: 'success' })
+  } catch (error) {
+    console.log(error)
+    res.status(500).json({ errorMessage: 'server error' })
+  }
+}
+
+exports.putCategoy = async (req, res, next) => {
+  try {
+    let myObjectId = res.locals.userObjectId
+    let categoryId = req.params.categoryId
+    let categoryName = req.body.categoryName
+
+    if (categoryName.trim() === '') {
+      res.status(400).json({ errorMessage: 'invalid request' })
+      return
+    }
+
+    let userInfo = await userModel.findOne({ _id: myObjectId }, { roleName: 1 })
+
+    if (userInfo.roleName !== 'admin') {
+      res.status(400).json({ errorMessage: 'invalid request' })
+      return
+    }
+
+    let categoryInfo = await categoryModel.findOne({ _id: categoryId })
+
+    if (!categoryInfo) {
+      res.status(400).json({ errorMessage: 'invalid request' })
+      return
+    }
+
+    let dupuliCheckCategoryInfo = await categoryModel.findOne({ name: categoryName }, {isDelete: 1})
+
+    if (dupuliCheckCategoryInfo) {
+      let errorMessage
+      if (dupuliCheckCategoryInfo.isDelete) {
+        errorMessage = '삭제된 카테고리 중에 중복된 카테고리 명이 존재합니다.'
+      } else {
+        errorMessage = '존재하는 카테고리 중에 중복된 카테고리 명이 존재합니다.'
+      }
+      res.status(400).json({ errorMessage: errorMessage })
+      return
+    }
+
+    let savedCategoryInfo = await categoryModel.findOneAndUpdate({ _id: categoryId }, { name: categoryName }, { new: true })
+
+    res.status(200).json({ result: 'success', categoryName: savedCategoryInfo.name })
+  } catch (error) {
+    console.log(error)
+    res.status(500).json({ errorMessage: 'server error' })
+  }
+}
+
+exports.addCategory = async (req, res, next) => {
+  try {
+    let categoryType = req.body.type 
+    let categoryName = req.body.categoryName
+    let myObjectId = res.locals.userObjectId
+
+    let userInfo = await userModel.findOne({ _id: myObjectId }, { roleName: 1 })
+
+    if (userInfo.roleName !== 'admin') {
+      res.status(400).json({ errorMessage: 'invalid request' })
+      return
+    }
+
+    if (!categoryType || !categoryName || categoryName.trim() === '' || categoryType.trim() === '') {
+      res.status(400).json({ errorMessage: 'invalid request' })
+      return
+    }
+
+    let dupuliCheckCategoryInfo = await categoryModel.findOne({ name: categoryName }, {isDelete: 1})
+
+    if (dupuliCheckCategoryInfo) {
+      let errorMessage
+      if (dupuliCheckCategoryInfo.isDelete) {
+        errorMessage = '삭제된 카테고리 중에 중복된 카테고리 명이 존재합니다.'
+      } else {
+        errorMessage = '존재하는 카테고리 중에 중복된 카테고리 명이 존재합니다.'
+      }
+      res.status(400).json({ errorMessage: errorMessage })
+      return
+    }
+
+    let categoryInfo = {
+      type: categoryType,
+      name: categoryName,
+    }
+
+    await categoryModel.createOrSave(categoryInfo)
+
+    res.status(200).json({ result: 'success' })
+  } catch (error) {
+    console.log(error)
+    res.status(500).json({errorMessage: 'server error'})
   }
 }
 
@@ -519,6 +660,18 @@ exports.writeBoard = async (req, res, next) => {
       return
     }
 
+    if (!req.body.categoryId) {
+      res.status(400).json({ errorMessage: 'invalid category id' });
+      return
+    }
+
+    let categoryInfo = await categoryModel.findOne({_id: req.body.categoryId, isDelete: false}, {_id: 1})
+
+    if (!categoryInfo) {
+      res.status(400).json({ errorMessage: 'invalid category id' });
+      return
+    }
+
     let boardInfo = {
       writerUserId: res.locals.userObjectId,
       nickname: res.locals.userNickname,
@@ -536,6 +689,7 @@ exports.writeBoard = async (req, res, next) => {
       dislike: 0,
       isDelete: false,
       isShow: true,
+      categoryId: req.body.categoryId,
     }
   
     await boardModel.createOrSave(boardInfo)

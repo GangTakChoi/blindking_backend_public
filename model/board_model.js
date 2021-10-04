@@ -10,10 +10,10 @@ const boardSchema = new mongoose.Schema({
   view: { type: Number, default: 0, required: true},
   like: { type: Number, default: 0, required: true},
   dislike: { type: Number, default: 0, required: true},
-  category: { type: Number, default: 0, required: true },
+  categoryId: { type: String, required: true },
   commentCount: { type: Number, default: 0, required: true },
-  isDelete: { type: Boolean, default: false, required: true },
-  isShow: {type: Boolean, default: true, required: true},
+  isDelete: { type: Boolean, default: false, required: true }, 
+  isShow: { type: Boolean, default: true, required: true },
 },
 {
   versionKey: false,
@@ -24,7 +24,7 @@ const boardSchema = new mongoose.Schema({
 }
 );
 
-boardSchema.index({title: 'text', content: 'text', nickname: 'text', isDelete: 1, isShow: 1, category: 1, like: -1, view: -1})
+boardSchema.index({title: 'text', content: 'text', nickname: 'text', isDelete: 1, isShow: 1, category: 1, like: -1, view: -1, categoryId: 'text'})
 
 boardSchema.statics.createOrSave = function (payload) {
   // this === Model
