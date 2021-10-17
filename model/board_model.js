@@ -10,7 +10,7 @@ const boardSchema = new mongoose.Schema({
   view: { type: Number, default: 0, required: true},
   like: { type: Number, default: 0, required: true},
   dislike: { type: Number, default: 0, required: true},
-  categoryId: { type: String, required: true },
+  categoryId: { type: mongoose.Schema.Types.ObjectId, ref: 'board_category', required: true },
   commentCount: { type: Number, default: 0, required: true },
   isDelete: { type: Boolean, default: false, required: true }, 
   isShow: { type: Boolean, default: true, required: true },

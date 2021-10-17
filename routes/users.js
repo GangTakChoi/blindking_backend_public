@@ -2,7 +2,7 @@ var express = require('express');
 var router = express.Router();
 
 var userControllers = require('../controllers/user.controllers')
-var { verifyToken } = require('../middlewares/authorization')
+var { verifyToken, verifyAdminToken } = require('../middlewares/authorization')
 
 // 매칭 파트너 정보
 router.get('/maching-partners', verifyToken, userControllers.getMachingPartnerList);
@@ -14,11 +14,16 @@ router.get('/self-introduction', verifyToken, userControllers.getSelfIntroductio
 router.get('/friends', verifyToken, userControllers.getFriendInfoList);
 // 마이페이지 정보
 router.get('/mypage', verifyToken, userControllers.getMypageInfo);
-
 // 아이디 중복 검사
 router.get('/id/duplicate-check/:id', userControllers.checkDuplicateId)
 // 닉네임 중복 검사
 router.get('/nickname/duplicate-check/:nickname', userControllers.checkDuplicateNickname)
+// 유저 신고 리스트
+router.get('/report-list', verifyAdminToken, userControllers.getReportList)
+// 유저 신고 자세한 정보
+router.get('/report/:reportId', verifyAdminToken, userControllers.getReportDetail)
+// 유저 채팅 정보
+router.get('/:userId/friend/:friendId/chatting', verifyAdminToken, userControllers.getChattingInfo)
 
 // 회원가입
 router.post('/', userControllers.addUser); 
@@ -36,6 +41,8 @@ router.post('/friend/:userObjectId/reject', verifyToken, userControllers.rejectF
 router.post('/friend/:userObjectId/block', verifyToken, userControllers.blockFriend);
 // 친구 차단 해제
 router.post('/friend/:userObjectId/release-block', verifyToken, userControllers.releaseBlockFriend);
+// 유저 신고
+router.post('/:friendId/report', verifyToken, userControllers.reportUser)
 
 // 유저 매칭 활성화
 router.put('/active-matching', verifyToken, userControllers.activeMatching);

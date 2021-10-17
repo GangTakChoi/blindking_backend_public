@@ -7,6 +7,7 @@ const chattingRoomModel = require('../model/chatting_room')
 const areaModel = require('../model/area_model')
 const commonModel = require('../model/common_model')
 const questionListModel = require('../model/question_list_model')
+const userReportModel = require('../model/user_report_model')
 
 exports.addUser = async function (req, res, next) {
   try {
@@ -254,6 +255,7 @@ exports.createToken = async function (req, res, next) {
           id: userInfo.id,
           objectId: userInfo._id,
           nickname: userInfo.nickname,
+          roleName: userInfo.roleName,
         },
         YOUR_SECRET_KEY,
         {expiresIn: '12h'}
@@ -264,7 +266,7 @@ exports.createToken = async function (req, res, next) {
       res.cookie('nickname', userInfo.nickname);
       res.cookie('isActiveMatching', userInfo.isActiveMatching);
       res.cookie('matchingTopDisplayUseingTime', userInfo.matchingTopDisplayUseingTime.getTime());
-      res.cookie('roleName', userInfo.roleName)
+      res.cookie('roleName', userInfo.roleName);
       
       res.status(201).json({
         result: 'ok'
@@ -973,6 +975,57 @@ exports.releaseBlockFriend = async function (req, res, next) {
   }
 }
 
+exports.reportUser = async function (req, res, next) {
+  try {
+    let myObjectId = res.locals.userObjectId
+    let myNickname = res.locals.userNickname
+    let reportedUserId = req.params.friendId
+    let target = req.body.target
+    let type = req.body.reportType
+    let content = req.body.reportContent
+
+    if (typeof target !== 'string' || target.length > 100) {
+      res.status(400).json({ errorMessage: 'invalid request' })
+      return
+    }
+
+    if (typeof type !== 'string' || target.length > 100) {
+      res.status(400).json({ errorMessage: 'invalid request' })
+      return
+    }
+
+    if (typeof content !== 'string' || content.length > 5000) {
+      res.status(400).json({ errorMessage: '신고 내용이 너무 깁니다.' })
+      return
+    }
+
+    let reportedUserInfo = await userModel.findOne({_id: reportedUserId}, {nickname: 1})
+
+    if (!reportedUserInfo) {
+      res.status(400).json({ errorMessage: '존재하지 않는 회원입니다.' })
+      return
+    }
+
+    let reportInfo = {
+      target: target,
+      type: type,
+      reporterUserId: myObjectId,
+      reporterNickname: myNickname,
+      reportedUserId: reportedUserId,
+      reportedUserNickname: reportedUserInfo.nickname,
+      reportContent: content,
+      adminComment: '',
+    }
+
+    await userReportModel.createOrSave(reportInfo)
+
+    res.status(200).json({ result: 'success' })
+  } catch (error) {
+    console.log(error)
+    res.status(500).json({ errorMessage: 'server error' })
+  }
+}
+
 exports.modifyFriendStatus = async function (req, res, next) {
   try {
     let status = req.body.status
@@ -1058,6 +1111,81 @@ exports.checkDuplicateNickname = async function (req, res, next) {
   } catch (error) {
     res.status(500).json({errorMessage: "server error"})
     console.log(error)
+  }
+}
+
+exports.getReportList = async function (req, res, next) {
+  try {
+    let myObjectId = res.locals.userObjectId
+
+    let userInfo = await userModel.findOne({ _id: myObjectId }, {roleName: 1})
+
+    if (!userInfo || userInfo.roleName !== 'admin') {
+      res.status(400).json({ errorMessage: 'invalid request' })
+      return
+    }
+
+    let reportList = await userReportModel.find({}).sort({_id: -1})
+
+    res.status(200).json({ reportList: reportList })
+  } catch (error) {
+    console.log(error)
+    res.status(500).json({ errorMessage: 'server error' })
+  }
+}
+
+exports.getReportDetail = async function (req, res, next) {
+  try {
+    let myObjectId = res.locals.userObjectId
+    let reportId = req.params.reportId
+
+    let userInfo = await userModel.findOne({ _id: myObjectId }, {roleName: 1})
+
+    if (!userInfo || userInfo.roleName !== 'admin') {
+      res.status(400).json({ errorMessage: 'invalid request' })
+      return
+    }
+
+    let reportInfo = await userReportModel.findOne({ _id: reportId })
+
+    res.status(200).json({ result: 'success', reportInfo: reportInfo })
+  } catch (error) {
+    console.log(error)
+    res.status(500).json({ errorMessage: 'server error' })
+  }
+}
+
+exports.getChattingInfo = async function (req, res, next) {
+  try {
+    let myObjectId = res.locals.userObjectId
+    let userId = req.params.userId
+    let friendObjectId = req.params.friendId
+
+    let userInfo = await userModel.findOne({ _id: myObjectId}, {roleName: 1})
+
+    if (!userInfo || userInfo.roleName !== 'admin') {
+      res.status(400).json({ errorMessage: 'invalid request' })
+      return
+    }
+
+    let userFriendInfo = await userFriendsModel.findOne({ userObjectId: userId, friendObjectId: friendObjectId })
+
+    if (!userFriendInfo) {
+      res.status(400).json({ errorMessage: '유효하지 않은 친구관계입니다.' })
+      return
+    }
+
+    let chattingInfo = await chattingRoomModel.findOne({ _id: userFriendInfo.chattingRoomId },{ messageRecords: 1 })
+
+    if (!chattingInfo) {
+      res.status(400).json({ errorMessage: '채팅 정보가 존재하지 않습니다.'})
+      return
+    }
+
+    res.status(200).json({ result: 'success', chattingList: chattingInfo.messageRecords})
+  } catch (error) {
+    console.log(error)
+    res.status(500).json({ errorMessage: 'server error' })
   }
 }
 

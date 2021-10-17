@@ -106,6 +106,7 @@ exports.createSocket = (server) => {
 
         let messageInfo = {
           userObjectId: myObjectId,
+          userNickname: myNickname,
           content: requestInfo.msg,
         }
 

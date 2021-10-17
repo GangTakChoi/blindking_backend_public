@@ -4,6 +4,7 @@ const boardCommentModel = require('../model/comment_model')
 const commentLikeModel = require('../model/comment_like_model')
 const categoryModel = require('../model/board_category_model')
 const userModel = require('../model/user_model')
+const userReportModel = require('../model/user_report_model')
 
 exports.getBoardList = async (req, res, next) => {
   try {
@@ -302,6 +303,58 @@ exports.addCategory = async (req, res, next) => {
   }
 }
 
+exports.reportBoard = async (req, res, next) => {
+  try {
+    let myObjectId = res.locals.userObjectId
+    let myNickname = res.locals.userNickname
+    let boardId = req.params.boardId
+    let target = req.body.target
+    let type = req.body.reportType
+    let content = req.body.reportContent
+
+    if (typeof target !== 'string' || target.length > 100) {
+      res.status(400).json({ errorMessage: 'invalid request' })
+      return
+    }
+
+    if (typeof type !== 'string' || target.length > 100) {
+      res.status(400).json({ errorMessage: 'invalid request' })
+      return
+    }
+
+    if (typeof content !== 'string' || content.length > 5000) {
+      res.status(400).json({ errorMessage: '신고 내용이 너무 깁니다.' })
+      return
+    }
+
+    let boardInfo = await boardModel.findOne({_id: boardId})
+    
+    if (!boardInfo) {
+      res.status(400).json({ errorMessage: 'invalid request' })
+      return
+    }
+
+    let reportInfo = {
+      target: target,
+      type: type,
+      reporterUserId: myObjectId,
+      reporterNickname: myNickname,
+      reportedUserId: boardInfo.writerUserId,
+      reportedUserNickname: boardInfo.nickname,
+      reportContent: content,
+      captureTargetContent: boardInfo,
+      adminComment: '',
+    }
+
+    await userReportModel.createOrSave(reportInfo)
+
+    res.status(200).json({ result: 'success' })
+  } catch (error) {
+    console.log(error)
+    res.status(500).json({ errorMessage: 'server error' })
+  }
+}
+
 exports.registSubComment = async (req, res, next) => {
   try {
     let boardId = req.params.boardId
@@ -492,13 +545,22 @@ exports.deleteBoard = async (req, res, next) => {
     let myObjectId = res.locals.userObjectId
 
     let boardInfo = await boardModel.findOne(
-      { _id: boardId, writerUserId: myObjectId, isDelete: false },
-      { _id: 1 }
+      { _id: boardId, isDelete: false },
+      { _id: 1, writerUserId: 1 }
     )
 
     if (!boardInfo) {
       res.status(400).json({ errorMessage: 'invalid request' })
       return
+    }
+
+    if (myObjectId !== String(boardInfo.writerUserId)) {
+      let userInfo = await userModel.findOne({ _id: myObjectId }, {roleName: 1})
+
+      if (userInfo.roleName !== 'admin') {
+        res.status(400).json({ errorMessage: 'invalid request' })
+        return
+      }
     }
 
     await boardModel.findOneAndUpdate(
@@ -665,11 +727,19 @@ exports.writeBoard = async (req, res, next) => {
       return
     }
 
-    let categoryInfo = await categoryModel.findOne({_id: req.body.categoryId, isDelete: false}, {_id: 1})
+    let categoryInfo = await categoryModel.findOne({_id: req.body.categoryId, isDelete: false}, {_id: 1, type: 1})
 
     if (!categoryInfo) {
       res.status(400).json({ errorMessage: 'invalid category id' });
       return
+    }
+
+    if (categoryInfo.type === 'admin') {
+      let userInfo = await userModel.findOne({_id: res.locals.userObjectId}, {roleName: 1})
+      if (userInfo.roleName !== 'admin') {
+        res.status(400).json({ errorMessage: 'invalid category id' })
+        return
+      }
     }
 
     let boardInfo = {
@@ -986,15 +1056,29 @@ exports.putBoardLike = async (req, res, next) => {
 
 exports.getBoardDetail = async (req, res, next) => {
   try {
-    let boardId = req.params.id
+    let ObjectId = require('mongodb').ObjectId;
+    let boardId = new ObjectId(req.params.id)
     let myObjectId = res.locals.userObjectId
 
-    let boardInfo = await boardModel.findOne({ _id: boardId, isDelete: false})
+    let boardInfo = await boardModel.aggregate([
+      { $match: { _id: boardId, isDelete: false } },
+      {
+        $lookup:
+        {
+          from: "board_categories",
+          localField: "categoryId",
+          foreignField: "_id",
+          as: "categoryInfo"
+        }
+      }
+    ])
 
-    if (!boardInfo) {
+    if (!boardInfo || !Array.isArray(boardInfo) || boardInfo.length < 1) {
       res.status(400).json({ errorMessage: '삭제된 게시글 입니다.' })
       return
     }
+
+    boardInfo = boardInfo[0]
 
     await boardModel.findOneAndUpdate(
       { _id: boardId },
@@ -1009,6 +1093,7 @@ exports.getBoardDetail = async (req, res, next) => {
       view: boardInfo.view,
       like: boardInfo.like,
       dislike: boardInfo.dislike,
+      categoryType: boardInfo.categoryInfo[0].type,
       createdAt: boardInfo.createdAt,
     }
 

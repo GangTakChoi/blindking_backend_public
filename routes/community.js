@@ -4,7 +4,7 @@ var router = express.Router();
 
 var communityControllers = require('../controllers/community.controllers')
 var { apiBoardLikeLimiter } = require('../middlewares/apiRateLimit')
-var { verifyToken } = require('../middlewares/authorization')
+var { verifyToken, verifyAdminToken } = require('../middlewares/authorization')
 
 // 게시글 조회
 router.get('/board/:id', verifyToken, communityControllers.getBoardDetail);
@@ -26,7 +26,9 @@ router.post('/board/:id/comment', verifyToken, communityControllers.writeBoardOf
 // 대-댓글 작성
 router.post('/board/:boardId/comment/:commentId/sub-comment', verifyToken, communityControllers.registSubComment)
 // 카테고리 추가
-router.post('/category', verifyToken, communityControllers.addCategory)
+router.post('/category', verifyAdminToken, communityControllers.addCategory)
+// 게시글 신고
+router.post('/board/:boardId/report', verifyToken, communityControllers.reportBoard)
 
 // 게시글 좋아요, 싫어요
 router.put('/board/:id/like-dislike', apiBoardLikeLimiter, verifyToken, communityControllers.putBoardLike);
@@ -35,7 +37,7 @@ router.put('/board/:id', verifyToken, communityControllers.modifyBoard);
 // 댓글 좋아요, 싫어요
 router.put('/board/:boardId/comment/:commentId', apiBoardLikeLimiter, verifyToken, communityControllers.putCommentLike)
 // 카테고리 수정
-router.put('/category/:categoryId', verifyToken, communityControllers.putCategoy)
+router.put('/category/:categoryId', verifyAdminToken, communityControllers.putCategoy)
 
 // 게시글 삭제
 router.delete('/board/:boardId', verifyToken, communityControllers.deleteBoard);

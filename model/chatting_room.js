@@ -7,6 +7,7 @@ const readedMessageCountInfo = mongoose.Schema({
 
 const messageRecordSchema = mongoose.Schema({
   userObjectId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  userNickname: { type: String, required: true },
   content: { type: String, required: true },
   created: { type: Date, default: Date.now },
 })
