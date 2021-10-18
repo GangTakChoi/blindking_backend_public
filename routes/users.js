@@ -24,6 +24,8 @@ router.get('/report-list', verifyAdminToken, userControllers.getReportList)
 router.get('/report/:reportId', verifyAdminToken, userControllers.getReportDetail)
 // 유저 채팅 정보
 router.get('/:userId/friend/:friendId/chatting', verifyAdminToken, userControllers.getChattingInfo)
+// 특정 사용자의 특정 게시글에 남긴 댓글 내용 조회
+router.get('/:userId/board/:boardId/comment-list', verifyAdminToken, userControllers.getCommentListForOne)
 
 // 회원가입
 router.post('/', userControllers.addUser); 

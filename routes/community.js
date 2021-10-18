@@ -29,6 +29,8 @@ router.post('/board/:boardId/comment/:commentId/sub-comment', verifyToken, commu
 router.post('/category', verifyAdminToken, communityControllers.addCategory)
 // 게시글 신고
 router.post('/board/:boardId/report', verifyToken, communityControllers.reportBoard)
+// 댓글 신고
+router.post('/board/:boardId/comment/:commentId/report', verifyToken, communityControllers.reportComment)
 
 // 게시글 좋아요, 싫어요
 router.put('/board/:id/like-dislike', apiBoardLikeLimiter, verifyToken, communityControllers.putBoardLike);

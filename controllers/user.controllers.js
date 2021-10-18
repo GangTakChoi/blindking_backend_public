@@ -1189,6 +1189,29 @@ exports.getChattingInfo = async function (req, res, next) {
   }
 }
 
+exports.getCommentListForOne = async function (req, res, next) {
+  try {
+    let myObjectId = res.locals.userObjectId
+    let boardId = req.params.boardId
+    let userId = req.params.userId
+
+    let myUserInfo = await userModel.findOne({_id: myObjectId}, {roleName: 1})
+
+    if (!myUserInfo || myUserInfo.roleName !== 'admin') {
+      res.status(401).json({ errorMessage: 'unauthorized' })
+      return
+    }
+
+    let commentList = await boardCommentModel.find({ boardId: boardId, writerUserId: userId })
+    .sort({_id: -1})
+
+    res.status(200).json({ result: 'success', commentList: commentList })
+  } catch (error) {
+    console.log(error)
+    res.status(500).json({errorMessage: 'server error'})
+  }
+}
+
 async function establisFriendRelation (myObjectId, friendObjectId, chattingRoomId = null) {
 
   // 채팅룸이 존재하는 경우 

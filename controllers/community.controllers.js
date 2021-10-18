@@ -355,6 +355,59 @@ exports.reportBoard = async (req, res, next) => {
   }
 }
 
+exports.reportComment = async (req, res, next) => {
+  try {
+    let myObjectId = res.locals.userObjectId
+    let myNickname = res.locals.userNickname
+    let boardId = req.params.boardId
+    let commentId = req.params.commentId
+    let target = req.body.target
+    let type = req.body.reportType
+    let content = req.body.reportContent
+
+    if (typeof target !== 'string' || target.length > 100) {
+      res.status(400).json({ errorMessage: 'invalid request' })
+      return
+    }
+
+    if (typeof type !== 'string' || target.length > 100) {
+      res.status(400).json({ errorMessage: 'invalid request' })
+      return
+    }
+
+    if (typeof content !== 'string' || content.length > 5000) {
+      res.status(400).json({ errorMessage: '신고 내용이 너무 깁니다.' })
+      return
+    }
+
+    let commentInfo = await boardCommentModel.findOne({_id: commentId, boardId: boardId})
+
+    if (!commentInfo) {
+      res.status(400).json({ errorMessage: 'invalid request' })
+      return
+    }
+
+    let reportInfo = {
+      target: target,
+      type: type,
+      reporterUserId: myObjectId,
+      reporterNickname: myNickname,
+      reportedUserId: commentInfo.writerUserId,
+      reportedUserNickname: commentInfo.nickname,
+      reportContent: content,
+      captureTargetContent: commentInfo,
+      adminComment: '',
+    }
+
+    await userReportModel.createOrSave(reportInfo)
+
+    res.status(200).json({ result: 'success' })
+  } catch (error) {
+    console.log(error)
+    res.status(500).json({ errorMessage: 'server error' })
+  }
+}
+
 exports.registSubComment = async (req, res, next) => {
   try {
     let boardId = req.params.boardId
