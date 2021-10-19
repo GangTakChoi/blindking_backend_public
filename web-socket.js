@@ -91,8 +91,16 @@ exports.createSocket = (server) => {
           return
         }
 
-        if (roomId === null) socket.disconnect()
-        
+        if (roomId === null) {
+          socket.disconnect()
+          return
+        }
+
+        if (requestInfo.msg.length > 5000) {
+          socket.disconnect()
+          return
+        }
+
         let filter = {
           _id: roomId
         }
@@ -100,7 +108,6 @@ exports.createSocket = (server) => {
         let chattingRoomInfo = await chattingRoomModel.findOne(filter)
 
         if (chattingRoomInfo.isClose) {
-          socket.disconnect()
           return
         }
 
@@ -110,9 +117,9 @@ exports.createSocket = (server) => {
           content: requestInfo.msg,
         }
 
-        await chattingRoomInfo.messageRecords.push(messageInfo)
+        chattingRoomInfo.messageRecords.push(messageInfo)
 
-        await chattingRoomInfo.readedMessageCountInfos.forEach((readedMessageCountInfo) => {
+        chattingRoomInfo.readedMessageCountInfos.forEach((readedMessageCountInfo) => {
           if (String(readedMessageCountInfo.userObjectId) === myObjectId) {
             readedMessageCountInfo.readedMessageCount = chattingRoomInfo.messageRecords.length
           }
