@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 // 유저 신고
 const userReportSchema = new mongoose.Schema({
-  target: { type: String, required: true, enum: ["채팅", "게시글", "댓글"] },
+  target: { type: String, required: true, enum: ["채팅", "게시글", "댓글", "자기소개"] },
   type: { type: String, required: true },
   reporterUserId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   reporterNickname: { type: String, required: true },
