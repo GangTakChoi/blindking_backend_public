@@ -1121,6 +1121,10 @@ exports.getReportList = async function (req, res, next) {
     skip = isNaN(skip) ? 0 : skip
     let limit = Number(req.query.limit)
     limit = isNaN(limit) ? 30 : limit
+    let reportType = req.query.reportType === undefined ? null : req.query.reportType
+    let reportTarget = req.query.reportTarget === undefined ? null : req.query.reportTarget
+    let reporterNickname = req.query.reporter === undefined ? null : req.query.reporter
+    let reportedNickname = req.query.reported === undefined ? null : req.query.reported
 
     let userInfo = await userModel.findOne({ _id: myObjectId }, {roleName: 1})
 
@@ -1129,7 +1133,14 @@ exports.getReportList = async function (req, res, next) {
       return
     }
 
-    let reportList = await userReportModel.find({})
+    let filter = {}
+
+    if (reportType !== null) filter.type = reportType
+    if (reportTarget !== null) filter.target = reportTarget
+    if (reporterNickname !== null) filter.reporterNickname = reporterNickname
+    if (reportedNickname !== null) filter.reportedUserNickname = reportedNickname
+
+    let reportList = await userReportModel.find(filter)
     .skip(skip)
     .limit(limit)
     .sort({_id: -1})
