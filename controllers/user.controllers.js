@@ -1117,6 +1117,10 @@ exports.checkDuplicateNickname = async function (req, res, next) {
 exports.getReportList = async function (req, res, next) {
   try {
     let myObjectId = res.locals.userObjectId
+    let skip = Number(req.query.skip)
+    skip = isNaN(skip) ? 0 : skip
+    let limit = Number(req.query.limit)
+    limit = isNaN(limit) ? 30 : limit
 
     let userInfo = await userModel.findOne({ _id: myObjectId }, {roleName: 1})
 
@@ -1125,7 +1129,10 @@ exports.getReportList = async function (req, res, next) {
       return
     }
 
-    let reportList = await userReportModel.find({}).sort({_id: -1})
+    let reportList = await userReportModel.find({})
+    .skip(skip)
+    .limit(limit)
+    .sort({_id: -1})
 
     res.status(200).json({ reportList: reportList })
   } catch (error) {
