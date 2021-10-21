@@ -8,6 +8,7 @@ const areaModel = require('../model/area_model')
 const commonModel = require('../model/common_model')
 const questionListModel = require('../model/question_list_model')
 const userReportModel = require('../model/user_report_model')
+const mongoose = require('mongoose')
 
 exports.addUser = async function (req, res, next) {
   try {
@@ -449,17 +450,31 @@ exports.getMypageInfo = async function (req, res, next) {
         commentSortInfo = { _id: -1 }
       }
 
-      boardCommentList = await boardCommentModel.find(
+      boardCommentList = await boardCommentModel.aggregate([
+        { $match: { writerUserId: mongoose.Types.ObjectId(myObjectId), isDelete: false } },
         {
-          writerUserId: myObjectId,
-          isDelete: false
+          $lookup:
+          {
+            from: "boards",
+            let: { boardId: "$boardId" },
+            pipeline: [
+              { 
+                $match: { 
+                  $expr: { 
+                    $and: [ { $eq: [ "$_id",  "$$boardId" ] } ]
+                  }
+                },
+              },
+              { $project: { title: 1 } }
+            ],
+            as: "boardInfo"
+          }
         },
-        { content: 1, boardId: 1, createdAt: 1, like: 1 }
-      )
-      .populate('boardId', { title: 1 })
-      .skip(commentSkip)
-      .limit(limit)
-      .sort(commentSortInfo)
+        { $sort: commentSortInfo },
+        { $skip: commentSkip },
+        { $limit: limit },
+        { $project: { content: 1, boardId: 1, createdAt: 1, like: 1, boardInfo: 1 } },
+      ])
     }
 
     res.status(200).json({
