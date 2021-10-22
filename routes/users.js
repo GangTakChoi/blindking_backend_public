@@ -50,6 +50,8 @@ router.post('/:friendId/report', verifyToken, userControllers.reportUser)
 router.put('/active-matching', verifyToken, userControllers.activeMatching);
 // 유저 매칭 상위 노출
 router.put('/matching-top-display', verifyToken, userControllers.useTopDisplay);
+// 유저 활동 정지
+router.put('/:userId/active-status', verifyAdminToken, userControllers.putActiveStatus)
 
 
 module.exports = router;

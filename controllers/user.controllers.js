@@ -174,6 +174,69 @@ exports.useTopDisplay = async (req, res, next) => {
   }
 }
 
+exports.putActiveStatus = async (req, res, next) => {
+  try {
+    let reportedUserId = req.params.userId
+    let myObjectId = res.locals.userObjectId
+    let stopPrieod = req.body.stopPrieod
+    let adminComment = req.body.content
+
+    if (typeof stopPrieod !== 'string' || stopPrieod.length > 20) {
+      res.status(400).json({ errorMessage: 'invalid request' })
+      return
+    }
+
+    if (typeof adminComment !== 'string' || adminComment.length > 5000) {
+      res.status(400).json({ errorMessage: 'content too long (5000자 이내)' })
+      return
+    }
+
+    let myUserInfo = await userModel.findOne({ _id: myObjectId }, { roleName: 1 })
+
+    if (!myUserInfo || myUserInfo.roleName !== 'admin') {
+      res.status(400).json({ errorMessage: 'invalid request' })
+      return
+    }
+
+    let activeStopPrieodLastDate = new Date()
+
+    if (stopPrieod === '1주일') {
+      activeStopPrieodLastDate.setDate(activeStopPrieodLastDate.getDate() + 7)
+    } else if (stopPrieod === '1개월') {
+      activeStopPrieodLastDate.setMonth(activeStopPrieodLastDate.getMonth() + 1)
+    } else if (stopPrieod === '3개월') {
+      activeStopPrieodLastDate.setMonth(activeStopPrieodLastDate.getMonth() + 3)
+    } else if (stopPrieod === '6개월') {
+      activeStopPrieodLastDate.setMonth(activeStopPrieodLastDate.getMonth() + 6)
+    } else if (stopPrieod === '영구정지') {
+      activeStopPrieodLastDate.setFullYear(activeStopPrieodLastDate.getFullYear() + 80)
+    } else {
+      res.status(400).json({ errorMessage: 'invalid request' })
+      return
+    }
+
+    let userActiveStopHistoryInfo = {
+      stopPrieod: stopPrieod,
+      startDate: new Date(),
+      endDate: activeStopPrieodLastDate,
+      adminComment: adminComment,
+    }
+
+    await userModel.findOneAndUpdate(
+      { _id: reportedUserId },
+      { 
+        $set: { activeStopPrieodLastDate: activeStopPrieodLastDate },
+        $push: { activeStopHistoryList: userActiveStopHistoryInfo } 
+      }
+    )
+
+    res.status(200).json({result: 'success'})
+  } catch (error) {
+    console.log(error)
+    res.status(500).json({errorMessage: 'server error'})
+  }
+}
+
 exports.activeMatching = async (req, res, next) => {
   try {
     let userObjectId = res.locals.userObjectId

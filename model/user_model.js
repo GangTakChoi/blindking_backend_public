@@ -21,6 +21,13 @@ const regionInfoSchema = mongoose.Schema({
 }
 )
 
+const activeStopHistory = mongoose.Schema({
+  stopPrieod: { type: String },
+  startDate: { type: Date },
+  endDate: { type: Date },
+  adminComment: { type: String },
+})
+
 regionInfoSchema.index({rootAreaCode: 'text', subAreaCode: 'text'})
 
 // Define Schemes
@@ -34,6 +41,9 @@ const usersSchema = Schema({
   isActiveMatching: { type: Boolean, required: true, default: false },
   matchingTopDisplayUseingTime: { type: Date, required: false, default: new Date(0) },
   questionList: [questionInfo],
+  activeStopPrieodLastDate: { type: Date, required: true, default: new Date(0) },
+  activeStopHistoryList: [activeStopHistory],
+  warningCount: { type: Number, default: 0 },
   region: regionInfoSchema,
   isDelete: { type: Boolean, required: true, default: false },
   roleName: { type: String, required: true, default: "user", enum: ["user", "admin"] },
@@ -47,7 +57,7 @@ const usersSchema = Schema({
 }
 );
 
-usersSchema.index({ matchingTopDisplayUseingTime: -1, mbti: 'text', gender: 1, birthYear: 1, isDelete: 1 })
+usersSchema.index({ matchingTopDisplayUseingTime: -1, mbti: 'text', gender: 'text', birthYear: 1, isDelete: 1 })
 
 // Create new users document
 usersSchema.statics.create = function (payload) {
