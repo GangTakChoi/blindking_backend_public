@@ -200,7 +200,9 @@ exports.putActiveStatus = async (req, res, next) => {
 
     let activeStopPrieodLastDate = new Date()
 
-    if (stopPrieod === '1주일') {
+    if (stopPrieod === '3일') {
+      activeStopPrieodLastDate.setDate(activeStopPrieodLastDate.getDate() + 3)
+    } else if (stopPrieod === '1주일') {
       activeStopPrieodLastDate.setDate(activeStopPrieodLastDate.getDate() + 7)
     } else if (stopPrieod === '1개월') {
       activeStopPrieodLastDate.setMonth(activeStopPrieodLastDate.getMonth() + 1)
@@ -1305,6 +1307,35 @@ exports.getCommentListForOne = async function (req, res, next) {
   } catch (error) {
     console.log(error)
     res.status(500).json({errorMessage: 'server error'})
+  }
+}
+
+exports.getUserActivityStopHistory = async function (req, res, next) {
+  try {
+    let myObjectId = res.locals.userObjectId
+    let userId = mongoose.Types.ObjectId(req.params.userId)
+
+    let myUserInfo = await userModel.findOne({_id: myObjectId}, {roleName: 1})
+
+    if (!myUserInfo || myUserInfo.roleName !== 'admin') {
+      res.status(400).json({ errorMessage: 'invalid request' })
+      return
+    }
+
+    let userInfo = await userModel.aggregate([
+      {$match: { _id:userId }},
+      {$unwind: '$activeStopHistoryList'},
+      {$sort: {'activeStopHistoryList._id': -1}},
+      {$group: {_id: '$_id', 'activeStopHsty': {$push: '$activeStopHistoryList'}}},
+      {$project:{ activeStopHistoryList: '$activeStopHsty' }}
+    ])
+
+    let activeStopHistoryList = userInfo.length < 1 ? [] : userInfo[0].activeStopHistoryList
+
+    res.status(200).json({ result: 'success', activeStopHistoryList: activeStopHistoryList })
+  } catch (error) {
+    console.log(error)
+    res.status(500).json({ errorMessage: 'server error' })
   }
 }
 

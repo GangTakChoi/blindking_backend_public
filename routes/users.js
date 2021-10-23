@@ -26,6 +26,8 @@ router.get('/report/:reportId', verifyAdminToken, userControllers.getReportDetai
 router.get('/:userId/friend/:friendId/chatting', verifyAdminToken, userControllers.getChattingInfo)
 // 특정 사용자의 특정 게시글에 남긴 댓글 내용 조회
 router.get('/:userId/board/:boardId/comment-list', verifyAdminToken, userControllers.getCommentListForOne)
+// 사용자의 활동정지이력 조회
+router.get('/:userId/activity-stop-history', verifyAdminToken, userControllers.getUserActivityStopHistory)
 
 // 회원가입
 router.post('/', userControllers.addUser); 
