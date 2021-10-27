@@ -8,6 +8,7 @@ const mongoose = require('mongoose');
 var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
 var communityRouter = require('./routes/community');
+var adminRouter = require('./routes/admin');
 
 var app = express();
 
@@ -40,6 +41,7 @@ mongoose
 app.use('/', indexRouter);
 app.use('/user', usersRouter);
 app.use('/community', communityRouter);
+app.use('/admin', adminRouter);
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {

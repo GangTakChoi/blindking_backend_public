@@ -51,7 +51,7 @@ router.post('/:friendId/report', verifyToken, userControllers.reportUser)
 // 유저 매칭 활성화
 router.put('/active-matching', verifyToken, userControllers.activeMatching);
 // 유저 매칭 상위 노출
-router.put('/matching-top-display', verifyToken, userControllers.useTopDisplay);
+router.put('/matching-top-display', verifyToken, userControllers.useMatchingTopDisplay);
 // 유저 활동 정지
 router.put('/:userId/active-status', verifyAdminToken, userControllers.putActiveStatus)
 

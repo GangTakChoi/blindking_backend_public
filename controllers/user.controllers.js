@@ -19,7 +19,6 @@ exports.addUser = async function (req, res, next) {
     const userPwRepeat = req.body.pwRepeat
     const userNickname = req.body.nickname
     const userGender = req.body.gender
-    const userQuestionList = []
 
     // 아이디 유효성 검사
     let idValiddation = /^[a-zA-Z0-9]*$/;
@@ -79,23 +78,12 @@ exports.addUser = async function (req, res, next) {
       process.env.CRYPTO_ALGORITHM,
     ).toString(process.env.CRYPTO_ENCODING)
 
-    const quesiontInfoList = await questionListModel.find({ isDelete: false }, { _id: 1 }).sort({ order: 1 })
-
-    quesiontInfoList.forEach((element) => {
-      let questionInfo = {
-        questionId: element._id,
-        answer: ''
-      }
-
-      userQuestionList.push(questionInfo)
-    })
-
     const userInfo = {
       id: userId,
       pw: encryptedPassword,
       nickname: userNickname,
       gender: userGender,
-      questionList: userQuestionList,
+      questionList: [],
       region: {}
     }
 
@@ -108,7 +96,7 @@ exports.addUser = async function (req, res, next) {
   }
 };
 
-exports.useTopDisplay = async (req, res, next) => {
+exports.useMatchingTopDisplay = async (req, res, next) => {
   try {
     let userObjectId = res.locals.userObjectId
 
@@ -369,14 +357,15 @@ exports.setSelfIntroduction = async function (req, res, next) {
 
     let questionIdList = []
     let userQuestionList = []
-    let isInvalidRequest= false
 
     reqUserQuestionList.forEach((questionInfo) => {
       if (typeof questionInfo.answer !== 'string') {
-        isInvalidRequest = true
+        res.status(400).json({ errorMessage: 'question answer type error' });
+        return
       }
       if (questionInfo.answer.length > 5000) {
-        isInvalidRequest = true
+        res.status(400).json({ errorMessage: 'question answer too long' });
+        return
       }
 
       userQuestionList.push({
@@ -386,11 +375,6 @@ exports.setSelfIntroduction = async function (req, res, next) {
 
       questionIdList.push(questionInfo.questionId)
     })
-
-    if (isInvalidRequest) {
-      res.status(400).json({ errorMessage: 'invaild request' });
-      return
-    }
 
     let resultCount = await questionListModel.countDocuments({ _id: { $in:  questionIdList} })
 
@@ -557,13 +541,14 @@ exports.getSelfIntroduction = async function (req, res, next) {
   try {
     const userObjectId = res.locals.userObjectId
 
-    let userInfo = await userModel.findOneBy_Id(userObjectId).populate('questionList.questionId', { updatedAt: 0, createdAt: 0 })
+    let userInfo = await userModel.findOneBy_Id(userObjectId)
 
     if (!userInfo) {
       res.status(401).json({ error: 'unauthorized' })
       return
     }
 
+    let questionList = await questionListModel.find({ isShow: true, isDelete: false }, { order: 1, content: 1, inputType: 1 }).sort({order: 1})
     let upperArea = await areaModel.find({ depth:0 }, { _id: 0, createdAt: 0, updatedAt: 0 })
     let subArea = await areaModel.find({ depth:1 }, { _id: 0, createdAt: 0, updatedAt: 0 }).sort({ name: 1 })
     let mbtiInfo = await commonModel.findOne({ key:'mbti' })
@@ -579,7 +564,8 @@ exports.getSelfIntroduction = async function (req, res, next) {
         upperArea: upperArea,
         subArea: subArea
       },
-      mbtiList: mbtiInfo.data
+      questionList: questionList,
+      mbtiList: mbtiInfo.data,
     }
 
     res.status(200).json(response)
