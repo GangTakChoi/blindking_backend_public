@@ -1,8 +1,8 @@
 const mongoose = require('mongoose');
 
-const readedMessageCountInfo = mongoose.Schema({
+const messageUnReadInfo = mongoose.Schema({
   userObjectId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  readedMessageCount: { type: Number, default: 0, required: true },
+  isUnReadMessage: { type: Boolean, default: false, required: true },
 })
 
 const messageRecordSchema = mongoose.Schema({
@@ -15,7 +15,7 @@ const messageRecordSchema = mongoose.Schema({
 // 회원 친구 정보
 const chattingRoomSchema = new mongoose.Schema({
   messageRecords: [messageRecordSchema],
-  readedMessageCountInfos: [readedMessageCountInfo],
+  messageUnReadInfos: [messageUnReadInfo],
   isClose: {type: Boolean, default: false, required: true }, 
 },
 {

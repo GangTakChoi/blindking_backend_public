@@ -958,7 +958,10 @@ exports.getFriendInfoList = async function (req, res, next) {
       userObjectId: userObjectId
     }
     
-    let friendInfoList = await userFriendsModel.find(filter).populate('friendObjectId').populate('chattingRoomId').sort({"updatedAt": -1})
+    let friendInfoList = await userFriendsModel.find(filter)
+    .populate('friendObjectId', {nickname: 1})
+    .populate('chattingRoomId', {messageUnReadInfos: 1})
+    .sort({"updatedAt": -1})
 
     let friendRequestInfoList = []
     let friendAcceptInfoList = []
@@ -977,15 +980,15 @@ exports.getFriendInfoList = async function (req, res, next) {
         friendBlockInfoList.push(tempfriendInfo)
       }
       if (friendInfo.status === 'accept') {
-        let readMessageCount = 0
+        let isUnReadMessage = false
 
-        friendInfo.chattingRoomId.readedMessageCountInfos.forEach((readedMessageCountInfo) => {
-          if (String(readedMessageCountInfo.userObjectId) === userObjectId) {
-            readMessageCount = readedMessageCountInfo.readedMessageCount
+        friendInfo.chattingRoomId.messageUnReadInfos.forEach((messageUnreadInfo) => {
+          if (String(messageUnreadInfo.userObjectId) === userObjectId) {
+            isUnReadMessage = messageUnreadInfo.isUnReadMessage
           }
         })
 
-        tempfriendInfo.unreadMessageCount = friendInfo.chattingRoomId.messageRecords.length - readMessageCount
+        tempfriendInfo.isUnReadMessage = isUnReadMessage
 
         friendAcceptInfoList.push(tempfriendInfo)
       }
@@ -1349,20 +1352,31 @@ async function establisFriendRelation (myObjectId, friendObjectId, chattingRoomI
 
   // 채팅룸이 존재하지 않는 경우
   } else {
-    let readedMessageCountInfos = [
-      {userObjectId: myObjectId}, {userObjectId: friendObjectId}
+    let messageUnReadInfos = [
+      {
+        userObjectId: myObjectId,
+        isUnReadMessage: false
+      },
+      {
+        userObjectId: friendObjectId,
+        isUnReadMessage: false
+      }
     ]
   
     // 채팅방 생성
     let chattingRoom = await chattingRoomModel.create({
-      readedMessageCountInfos: readedMessageCountInfos
+      messageUnReadInfos: messageUnReadInfos,
+      isClose: false
     })
   
     let chattingRoomId = chattingRoom._id
     
     // 친구에 대한 상태로 승인으로 수정
     await userFriendsModel.findOneAndUpdate(
-      {userObjectId: myObjectId, friendObjectId: friendObjectId},
+      {
+        userObjectId: myObjectId,
+        friendObjectId: friendObjectId
+      },
       {
         status: "accept",
         chattingRoomId: chattingRoomId
@@ -1371,7 +1385,10 @@ async function establisFriendRelation (myObjectId, friendObjectId, chattingRoomI
     
     // 상대 친구의 나에 대한 상태 승인으로 수정
     await userFriendsModel.findOneAndUpdate(
-      {userObjectId: friendObjectId, friendObjectId: myObjectId},
+      {
+        userObjectId: friendObjectId,
+        friendObjectId: myObjectId
+      },
       {
         status: "accept",
         chattingRoomId: chattingRoomId

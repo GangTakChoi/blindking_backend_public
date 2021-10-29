@@ -84,6 +84,53 @@ exports.createSocket = (server) => {
       }
     })
 
+    socket.on('goInChattingRoom', async () => {
+      try {
+        if (myObjectId === null) {
+          socket.disconnect()
+          return
+        }
+
+        socket.join(roomId)
+
+        filter = {
+          _id: roomId
+        }
+
+        // 이전 대화내용 로드
+        let chattingRoomInfo = await chattingRoomModel.findOne(filter, { messageRecords: 1, isClose: 1 })
+        
+        // 이전 대화내용 없는 경우 종료
+        if (!chattingRoomInfo === null) {
+          socket.disconnect()
+          return
+        }
+
+        await chattingRoomModel.updateOne(
+          {
+            _id: chattingRoomInfo._id,
+            "messageUnReadInfos.userObjectId": myObjectId
+          },
+          {
+            $set: { "messageUnReadInfos.$.isUnReadMessage" : false }
+          },
+        )
+        
+        socket.emit(
+          "loadMessage", 
+          {
+            myObjectId: myObjectId,
+            messageRecords: chattingRoomInfo.messageRecords,
+            isChattingRoomClose: chattingRoomInfo.isClose
+          }
+        )
+      } catch (e) {
+        socket.disconnect()
+        console.log(e)
+      }
+      
+    });
+
     socket.on('sendMessage', async (requestInfo) => {
       try {
         if (myObjectId === null || friendObjectId === null || myNickname === null) {
@@ -105,9 +152,10 @@ exports.createSocket = (server) => {
           _id: roomId
         }
 
-        let chattingRoomInfo = await chattingRoomModel.findOne(filter)
+        let chattingRoomInfo = await chattingRoomModel.findOne(filter, { isClose: 1 })
 
         if (chattingRoomInfo.isClose) {
+          socket.disconnect()
           return
         }
 
@@ -117,17 +165,22 @@ exports.createSocket = (server) => {
           content: requestInfo.msg,
         }
 
-        chattingRoomInfo.messageRecords.push(messageInfo)
+        let dbReturnData = await chattingRoomModel.updateOne(
+          {
+            _id: chattingRoomInfo._id,
+            "messageUnReadInfos.userObjectId": friendObjectId
+          },
+          {
+            $set: { "messageUnReadInfos.$.isUnReadMessage" : true },
+            $push: { messageRecords: messageInfo }
+          },
+        )
 
-        chattingRoomInfo.readedMessageCountInfos.forEach((readedMessageCountInfo) => {
-          if (String(readedMessageCountInfo.userObjectId) === myObjectId) {
-            readedMessageCountInfo.readedMessageCount = chattingRoomInfo.messageRecords.length
-          }
-        })
+        if (dbReturnData.nModified !== 1) {
+          // 메세지 등록 오류
+        }
 
-        await chattingRoomModel.create(chattingRoomInfo)
-
-        io.of('/chatting').to(roomId).emit('brodcastMessage', requestInfo); // 그룹 전체
+        io.of('/chatting').to(roomId).emit('brodcastMessage', requestInfo);
 
         let alimInfo = {
           nickname: myNickname,
@@ -135,58 +188,24 @@ exports.createSocket = (server) => {
           friendObjectId: myObjectId,
         }
 
-        io.of('/chatting-alim').to(friendObjectId).emit('messageAlim', alimInfo); // 그룹 전체
+        io.of('/chatting-alim').to(friendObjectId).emit('messageAlim', alimInfo);
       } catch (e) {
         socket.disconnect()
         console.log(e)
       }
     })
-    
-    socket.on('goInChattingRoom', async () => {
-      try {
-        if (myObjectId === null) {
-          socket.disconnect()
-          return
-        }
 
-        socket.join(roomId)
-
-        filter = {
-          _id: roomId
-        }
-
-        // 이전 대화내용 로드
-        let chattingRoomInfo = await chattingRoomModel.findOne(filter).sort({ 'messageRecords.created': 1 })
-        
-        // 이전 대화내용 없는 경우 종료
-        if (chattingRoomInfo === null || chattingRoomInfo.messageRecords.length < 0) return
-
-        // 읽은 메세지 카운트
-        await chattingRoomInfo.readedMessageCountInfos.forEach((readedMessageCountInfo) => {
-          if (String(readedMessageCountInfo.userObjectId) === myObjectId) {
-            readedMessageCountInfo.readedMessageCount = chattingRoomInfo.messageRecords.length
-          }
-        })
-        
-
-        // 읽은 메세지 수 저장
-        await chattingRoomModel.create(chattingRoomInfo)
-        
-        socket.emit(
-          "loadMessage", 
-          {
-            myObjectId: myObjectId,
-            messageRecords: chattingRoomInfo.messageRecords,
-            isChattingRoomClose: chattingRoomInfo.isClose
-          }
-        )
-
-      } catch (e) {
-        socket.disconnect()
-        console.log(e)
-      }
-      
-    });
+    socket.on('completeRead', async () => {
+      await chattingRoomModel.updateOne(
+        {
+          _id: roomId,
+          "messageUnReadInfos.userObjectId": myObjectId
+        },
+        {
+          $set: { "messageUnReadInfos.$.isUnReadMessage" : false },
+        },
+      )
+    })
     
   });
 }
