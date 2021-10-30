@@ -40,7 +40,7 @@ const usersSchema = Schema({
   mbti: { type: String, required: false, enum: ["ISTJ", "ISFJ", "INFJ", "INTJ", "ISTP", "ISFP", "INFP", "INTP", "ESTP", "ESFP", "ENFP", "ENTP", "ESTJ", "ESFJ", "ENFJ", "ENTJ", ""], default: "" },
   isActiveMatching: { type: Boolean, required: true, default: false },
   matchingTopDisplayUseingTime: { type: Date, required: false, default: new Date(0) },
-  questionList: [questionInfo],
+  questionAnswerInfoList : [questionInfo],
   activeStopPrieodLastDate: { type: Date, required: true, default: new Date(0) },
   activeStopHistoryList: [activeStopHistory],
   warningCount: { type: Number, default: 0 },

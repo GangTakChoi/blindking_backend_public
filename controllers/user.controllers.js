@@ -303,31 +303,42 @@ exports.createToken = async function (req, res, next) {
 
     const userInfo = await userModel.findOneByIdPw(userId, encryptedUserPw)
 
-    if (userInfo !== null) {
-      const token = jwt.sign(
-        {
-          id: userInfo.id,
-          objectId: userInfo._id,
-          nickname: userInfo.nickname,
-          roleName: userInfo.roleName,
-        },
-        YOUR_SECRET_KEY,
-        {expiresIn: '12h'}
-      );
-
-      res.cookie('token', token);
-      res.cookie('gender', userInfo.gender);
-      res.cookie('nickname', userInfo.nickname);
-      res.cookie('isActiveMatching', userInfo.isActiveMatching);
-      res.cookie('matchingTopDisplayUseingTime', userInfo.matchingTopDisplayUseingTime.getTime());
-      res.cookie('roleName', userInfo.roleName);
-      
-      res.status(201).json({
-        result: 'ok'
-      });
-    } else {
+    if (!userInfo) {
       res.status(400).json({ errorMessage: '로그인 실패' });
+      return
     }
+    
+    // 활동 정지 여부 확인
+    if (Date.now() < userInfo.activeStopPrieodLastDate.getTime()) {
+      let dateInfo = userInfo.activeStopPrieodLastDate
+      res.clearCookie('token');
+      res.status(401).json({ 
+        errorMessage: `신고처리된 회원입니다.\n[${dateInfo.getFullYear()}-${dateInfo.getMonth()+1}-${dateInfo.getDate()} ${dateInfo.getHours()}:${dateInfo.getMinutes()}]까지 정지기간 입니다.` 
+      });
+      return
+    }
+
+    const token = jwt.sign(
+      {
+        id: userInfo.id,
+        objectId: userInfo._id,
+        nickname: userInfo.nickname,
+        roleName: userInfo.roleName,
+      },
+      YOUR_SECRET_KEY,
+      {expiresIn: '12h'}
+    );
+
+    res.cookie('token', token);
+    res.cookie('gender', userInfo.gender);
+    res.cookie('nickname', userInfo.nickname);
+    res.cookie('isActiveMatching', userInfo.isActiveMatching);
+    res.cookie('matchingTopDisplayUseingTime', userInfo.matchingTopDisplayUseingTime.getTime());
+    res.cookie('roleName', userInfo.roleName);
+    
+    res.status(201).json({
+      result: 'ok'
+    });
   } catch (err) {
     console.log(err)
     res.status(500).json({errorMessage: 'server error'})
@@ -384,7 +395,7 @@ exports.setSelfIntroduction = async function (req, res, next) {
     }
 
     // 질문 정보 저장
-    userUpdateInfo.questionList = userQuestionList
+    userUpdateInfo.questionAnswerInfoList = userQuestionList
     
     // 출생년도 유효성 검사
     let nowDate = new Date();
@@ -558,7 +569,7 @@ exports.getSelfIntroduction = async function (req, res, next) {
         birthYear: userInfo.birthYear,
         mbti: userInfo.mbti,
         region: userInfo.region,
-        questionList: userInfo.questionList,
+        questionAnswerInfoList : userInfo.questionAnswerInfoList ,
       },
       regionInfo: {
         upperArea: upperArea,
@@ -640,9 +651,8 @@ exports.getMachingPartnerList = async function (req, res, next) {
     let userList = await userModel
     .find(
       userListfilter,
-      { birthYear:1, nickname:1,gender:1,mbti:1,questionList:1,region:1 }
+      { birthYear: 1, nickname: 1, gender:1, mbti: 1, questionAnswerInfoList : 1, region: 1 }
     )
-    .populate('questionList.questionId', { updatedAt: 0, createdAt: 0 })
     .sort({ matchingTopDisplayUseingTime : -1 })
     .skip(skip)
     .limit(limit)
@@ -653,15 +663,18 @@ exports.getMachingPartnerList = async function (req, res, next) {
 
     if (isInitial) {
       let mbtiInfo = await commonModel.findOne({ key:'mbti' })
-      let mbtiList = mbtiInfo.data.filter((element) => element !== 'unkown');
+      let mbtiList = mbtiInfo.data
       let upperArea = await areaModel.find({ depth:0 }, { _id: 0, createdAt: 0, updatedAt: 0 })
       let subArea = await areaModel.find({ depth:1 }, { _id: 0, createdAt: 0, updatedAt: 0 }).sort({ name: 1 })
+      let questionList = await questionListModel.find({ isShow: true, isDelete: false }, { content: 1 })
+      .sort({ order: 1 })
 
       response.mbtiList = mbtiList
       response.regionInfo = {
         upperArea: upperArea,
         subArea: subArea,
       }
+      response.questionList = questionList
     }
 
     res.status(200).json(response)
@@ -676,15 +689,21 @@ exports.getMachingPartnerList = async function (req, res, next) {
 exports.getMachingPartnerDetail = async function (req, res, next) {
   try {
     let userObjectId = req.params.id
-    let userDetailInfo = await userModel.findOne({_id: userObjectId}, {birthYear:1, nickname:1,gender:1,mbti:1,questionList:1,region:1})
-    .populate('questionList.questionId', { updatedAt: 0, createdAt: 0 })
+    let userDetailInfo = await userModel.findOne(
+      { _id: userObjectId }, 
+      { birthYear:1, nickname:1, gender:1, mbti:1, questionAnswerInfoList :1, region:1 }
+    )
 
     if (!userDetailInfo) {
       res.status(400).json({errorMessage: 'invalid request'})
     }
 
+    let questionList = await questionListModel.find({ isShow: true, isDelete: false }, { content: 1 })
+    .sort({ order: 1 })
+
     res.status(200).json({
-      userDetailInfo: userDetailInfo
+      userDetailInfo: userDetailInfo,
+      questionList: questionList,
     });
 
   } catch (e) {

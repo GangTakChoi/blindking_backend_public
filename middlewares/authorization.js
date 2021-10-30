@@ -8,6 +8,7 @@ const verifyToken = async (req, res, next) => {
     const decoded = jwt.verify(clientToken, YOUR_SECRET_KEY);
 
     if (!decoded) {
+      res.clearCookie('token');
       res.status(401).json({ errorMessage: 'unauthorized' });
       return
     }
@@ -30,6 +31,7 @@ const verifyToken = async (req, res, next) => {
     next();
   } catch (err) {
     console.log(err)
+    res.clearCookie('token');
     res.status(401).json({ errorMessage: '로그인 세션이 만료되었습니다.' });
   }
 };
