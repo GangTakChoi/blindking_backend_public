@@ -4,6 +4,7 @@ var path = require('path');
 var cookieParser = require('cookie-parser');
 var logger = require('morgan');
 const mongoose = require('mongoose');
+var { apiCommonLimiter } = require('./middlewares/apiRateLimit')
 
 var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
@@ -37,6 +38,8 @@ mongoose
   .then(() => console.log('mongoose Successfully connected to mongodb'))
   .catch(e => console.error(e));
 
+// Api Rate Limit
+app.use(apiCommonLimiter)
 // ROUTE Handling
 app.use('/', indexRouter);
 app.use('/user', usersRouter);

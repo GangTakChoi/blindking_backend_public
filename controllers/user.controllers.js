@@ -271,7 +271,6 @@ exports.activeMatching = async (req, res, next) => {
       { new: true }
     )
 
-    res.cookie('isActiveMatching', updatedUserInfo.isActiveMatching);
     res.cookie('matchingTopDisplayUseingTime', updatedUserInfo.matchingTopDisplayUseingTime.getTime());
     res.status(200).json({ 
       result: 'success',
@@ -332,12 +331,16 @@ exports.createToken = async function (req, res, next) {
     res.cookie('token', token);
     res.cookie('gender', userInfo.gender);
     res.cookie('nickname', userInfo.nickname);
-    res.cookie('isActiveMatching', userInfo.isActiveMatching);
     res.cookie('matchingTopDisplayUseingTime', userInfo.matchingTopDisplayUseingTime.getTime());
-    res.cookie('roleName', userInfo.roleName);
+
+    let resUserInfo = {
+      isAdmin: userInfo.roleName === 'admin' ? true : false,
+      isActiveMatching: userInfo.isActiveMatching,
+    }
     
     res.status(201).json({
-      result: 'ok'
+      result: 'ok',
+      userInfo: resUserInfo,
     });
   } catch (err) {
     console.log(err)

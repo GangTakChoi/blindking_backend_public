@@ -2,9 +2,42 @@ const jwt = require('jsonwebtoken');
 const YOUR_SECRET_KEY = process.env.SECRET_KEY;
 const userModel = require('../model/user_model')
 
-const verifyToken = async (req, res, next) => {
+exports.setUserInfo = async (req, res, next) => {
   try {
     const clientToken = req.cookies.token;
+
+    if (!clientToken) {
+      next()
+      return
+    }
+
+    const decoded = jwt.verify(clientToken, YOUR_SECRET_KEY);
+
+    if (!decoded) {
+      next()
+      return
+    }
+
+    res.locals.userId = decoded.id;
+    res.locals.userObjectId = decoded.objectId;
+    res.locals.userNickname = decoded.nickname;
+    res.locals.roleName = decoded.roleName;
+    next();
+  } catch (error) {
+    console.log(error)
+    res.status(401).json({ errorMessage: 'server error' });
+  }
+}
+
+exports.verifyToken = async (req, res, next) => {
+  try {
+    const clientToken = req.cookies.token;
+
+    if (!clientToken) {
+      res.status(401).json({ errorMessage: 'unauthorized' });
+      return
+    }
+
     const decoded = jwt.verify(clientToken, YOUR_SECRET_KEY);
 
     if (!decoded) {
@@ -36,7 +69,7 @@ const verifyToken = async (req, res, next) => {
   }
 };
 
-const verifyAdminToken = (req, res, next) => {
+exports.verifyAdminToken = (req, res, next) => {
   try {
     const clientToken = req.cookies.token;
     const decoded = jwt.verify(clientToken, YOUR_SECRET_KEY);
@@ -54,7 +87,3 @@ const verifyAdminToken = (req, res, next) => {
     res.status(401).json({ errorMessage: '로그인 세션이 만료되었습니다.' })
   }
 }
-
-exports.verifyToken = verifyToken;
-exports.verifyAdminToken = verifyAdminToken;
-

@@ -3,19 +3,19 @@ var router = express.Router();
 
 
 var communityControllers = require('../controllers/community.controllers')
-var { apiBoardLikeLimiter } = require('../middlewares/apiRateLimit')
-var { verifyToken, verifyAdminToken } = require('../middlewares/authorization')
+var { apiCommonLimiter, apiBoardLikeLimiter } = require('../middlewares/apiRateLimit')
+var { verifyToken, verifyAdminToken, setUserInfo } = require('../middlewares/authorization')
 
 // 게시글 조회
-router.get('/board/:id', verifyToken, communityControllers.getBoardDetail);
+router.get('/board/:id', setUserInfo, communityControllers.getBoardDetail);
 // 게시글 리스트 조회
-router.get('/board-list', verifyToken, communityControllers.getBoardList);
+router.get('/board-list', setUserInfo, communityControllers.getBoardList);
 // 게시글 댓글 조회
-router.get('/board/:boardId/comment', verifyToken, communityControllers.getBoardComment)
+router.get('/board/:boardId/comment', setUserInfo, communityControllers.getBoardComment)
 // 게시글 대댓글 조회
-router.get('/board/:boardId/comment/:rootCommentId/sub-comment', verifyToken, communityControllers.getSubComment)
+router.get('/board/:boardId/comment/:rootCommentId/sub-comment', setUserInfo, communityControllers.getSubComment)
 // 카테고리 조회
-router.get('/category', verifyToken, communityControllers.getCategory)
+router.get('/category', setUserInfo, communityControllers.getCategory)
 
 // 게시글 이미지 업로드
 router.post('/image-upload', verifyToken, communityControllers.fileupload);
