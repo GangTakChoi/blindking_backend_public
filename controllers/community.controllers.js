@@ -39,7 +39,8 @@ exports.getBoardList = async (req, res, next) => {
 
     if (!categoryId) {
       let categoryInfo = await categoryModel.find({},{_id: 1}).limit(1)
-      categoryId = categoryInfo[0]._id
+      if (categoryInfo.length > 0)  categoryId = categoryInfo[0]._id
+      else categoryId = null
     }
 
     filter.$and.push({ categoryId: categoryId })
@@ -78,9 +79,7 @@ exports.getBoardList = async (req, res, next) => {
     })
   } catch (err) {
     console.log(err)
-    res.status(500).json({
-      result: 'server error'
-    });
+    res.status(500).json({errorMessage: 'server error'});
   }
   
 }
