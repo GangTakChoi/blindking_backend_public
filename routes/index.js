@@ -8,7 +8,7 @@ const userModel = require('../model/user_model')
 
 /* GET home page. */
 router.get('/', function(req, res, next) {
-  res.render('index', { title: 'Express' });
+  res.status(200).json({ name: 'blindking' })
 });
 
 // 토큰 검증

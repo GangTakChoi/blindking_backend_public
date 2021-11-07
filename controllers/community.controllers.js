@@ -412,6 +412,7 @@ exports.registSubComment = async (req, res, next) => {
     let boardId = req.params.boardId
     let rootCommentId = req.params.commentId
     let nickname = res.locals.userNickname
+    let gender = res.locals.gender
     let userId = res.locals.userObjectId
 
     if (!req.body.content || typeof req.body.content !== 'string' || req.body.content.length > 5000) {
@@ -428,6 +429,7 @@ exports.registSubComment = async (req, res, next) => {
 
     let subCommentInfo = {
       rootCommentId: rootCommentId,
+      gender: gender,
       writerUserId: userId,
       nickname: nickname,
       boardId: boardId,
@@ -532,6 +534,7 @@ exports.writeBoardOfComment = async (req, res, next) => {
     let userId = res.locals.userObjectId
     let boardId = req.params.id
     let nickname = res.locals.userNickname
+    let gender = res.locals.gender
 
     if (!req.body.content || typeof req.body.content !== 'string' || req.body.content.length > 5000) {
       res.status(400).json({ errorMessage: 'invalid request' });
@@ -549,6 +552,7 @@ exports.writeBoardOfComment = async (req, res, next) => {
     let boardCommentInfo = {
       rootCommentId: null,
       writerUserId: userId,
+      gender: gender,
       nickname: nickname,
       boardId: boardId,
       content: req.body.content,
@@ -797,6 +801,7 @@ exports.writeBoard = async (req, res, next) => {
     let boardInfo = {
       writerUserId: res.locals.userObjectId,
       nickname: res.locals.userNickname,
+      gender: res.locals.gender,
       title: req.body.title,
       content: req.body.content,
       searchContent: req.body.content

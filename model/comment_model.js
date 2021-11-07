@@ -4,6 +4,7 @@ const mongoose = require('mongoose');
 const boardCommentSchema = new mongoose.Schema({
   rootCommentId: { type: mongoose.Schema.Types.ObjectId, ref: 'board_comment', default: null },
   writerUserId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  gender: { type: String, required: true, enum: ['male', 'female'] },
   nickname: { type: String, required: true },
   boardId: { type: mongoose.Schema.Types.ObjectId, ref: 'board', required: true },
   content: { type: String, required: true },

@@ -4,6 +4,7 @@ const mongoose = require('mongoose');
 const boardSchema = new mongoose.Schema({
   writerUserId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   nickname: { type: String, required: true },
+  gender: { type: String, required: true, enum: ['male', 'female'] },
   title: { type: String, required: true },
   content: { type: String, required: true },
   searchContent: { type: String, required: true },

@@ -323,6 +323,7 @@ exports.createToken = async function (req, res, next) {
         objectId: userInfo._id,
         nickname: userInfo.nickname,
         roleName: userInfo.roleName,
+        gender: userInfo.gender,
       },
       YOUR_SECRET_KEY,
       {expiresIn: '12h'}

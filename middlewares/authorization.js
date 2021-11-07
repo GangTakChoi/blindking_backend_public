@@ -22,6 +22,7 @@ exports.setUserInfo = async (req, res, next) => {
     res.locals.userObjectId = decoded.objectId;
     res.locals.userNickname = decoded.nickname;
     res.locals.roleName = decoded.roleName;
+    res.locals.gender = decoded.gender;
     next();
   } catch (error) {
     console.log(error)
@@ -61,6 +62,7 @@ exports.verifyToken = async (req, res, next) => {
     res.locals.userObjectId = decoded.objectId;
     res.locals.userNickname = decoded.nickname;
     res.locals.roleName = decoded.roleName;
+    res.locals.gender = decoded.gender;
     next();
   } catch (err) {
     console.log(err)
@@ -79,6 +81,7 @@ exports.verifyAdminToken = (req, res, next) => {
       res.locals.userObjectId = decoded.objectId;
       res.locals.userNickname = decoded.nickname;
       res.locals.roleName = decoded.roleName;
+      res.locals.gender = decoded.gender;
       next();
     } else {
       res.status(401).json({ errorMessage: 'unauthorized' });
