@@ -22,15 +22,27 @@ exports.createSocket = (server) => {
     socket.on('disconnect', () => {
       console.log('[chatting-alim] 연결 종료 (id:' + socket.id + ')');
     });
-    socket.on('alimRoomOpen', (clientToken) => {
-      const decoded = jwt.verify(clientToken, YOUR_SECRET_KEY);
-      
-      if (!decoded) {
-        socket.disconnect()
-        return
-      }
 
-      socket.join(decoded.objectId)
+    socket.on('alimRoomOpen', (clientToken) => {
+      try {
+        if (!clientToken) {
+          console.log('client token is null')
+          socket.disconnect()
+          return
+        }
+
+        const decoded = jwt.verify(clientToken, YOUR_SECRET_KEY);
+      
+        if (!decoded) {
+          socket.disconnect()
+          return
+        }
+
+        socket.join(decoded.objectId)
+      } catch (error) {
+        console.log(error)
+        socket.disconnect()
+      }
     });
   })
 
@@ -196,15 +208,20 @@ exports.createSocket = (server) => {
     })
 
     socket.on('completeRead', async () => {
-      await chattingRoomModel.updateOne(
-        {
-          _id: roomId,
-          "messageUnReadInfos.userObjectId": myObjectId
-        },
-        {
-          $set: { "messageUnReadInfos.$.isUnReadMessage" : false },
-        },
-      )
+      try {
+        await chattingRoomModel.updateOne(
+          {
+            _id: roomId,
+            "messageUnReadInfos.userObjectId": myObjectId
+          },
+          {
+            $set: { "messageUnReadInfos.$.isUnReadMessage" : false },
+          },
+        )
+      } catch (error) {
+        socket.disconnect()
+        console.log(error)
+      }
     })
     
   });

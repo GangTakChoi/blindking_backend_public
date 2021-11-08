@@ -114,8 +114,10 @@ exports.useMatchingTopDisplay = async (req, res, next) => {
         { new: true }
       )
       
-      res.cookie('matchingTopDisplayUseingTime', updatedUserInfo.matchingTopDisplayUseingTime.getTime());
-      res.status(200).json({ matchingTopDisplayUseingTime: updatedUserInfo.matchingTopDisplayUseingTime })
+      // res.cookie('matchingTopDisplayUseingTime', updatedUserInfo.matchingTopDisplayUseingTime.getTime());
+      res.status(200).json({ 
+        matchingTopDisplayUseingTime: updatedUserInfo.matchingTopDisplayUseingTime.getTime()
+      })
       return
     }
 
@@ -140,8 +142,11 @@ exports.useMatchingTopDisplay = async (req, res, next) => {
       if (displayDiffMin < 10) displayDiffMin = '0' + displayDiffMin
       if (displayDiffSec < 10) displayDiffSec = '0' + displayDiffSec
 
-      res.cookie('matchingTopDisplayUseingTime', matchingTopDisplayUseingTime.getTime());
-      res.status(400).json({errorMessage: `재사용 대기시간이 ${displayDiffHour}시 ${displayDiffMin}분 ${displayDiffSec}초 남았습니다.`})
+      // res.cookie('matchingTopDisplayUseingTime', matchingTopDisplayUseingTime.getTime());
+      res.status(400).json({
+        matchingTopDisplayUseingTime: matchingTopDisplayUseingTime.getTime(),
+        errorMessage: `재사용 대기시간이 ${displayDiffHour}시 ${displayDiffMin}분 ${displayDiffSec}초 남았습니다.`
+      })
       return
     } else {
       let updatedUserInfo = await userModel.findOneAndUpdate(
@@ -150,11 +155,12 @@ exports.useMatchingTopDisplay = async (req, res, next) => {
         { new: true }
       )
       
-      res.cookie('matchingTopDisplayUseingTime', updatedUserInfo.matchingTopDisplayUseingTime.getTime());
-      res.status(200).json({ matchingTopDisplayUseingTime: updatedUserInfo.matchingTopDisplayUseingTime })
+      // res.cookie('matchingTopDisplayUseingTime', updatedUserInfo.matchingTopDisplayUseingTime.getTime());
+      res.status(200).json({
+        matchingTopDisplayUseingTime: updatedUserInfo.matchingTopDisplayUseingTime.getTime()
+      })
       return
     }
-
     
   } catch (e) {
     console.log(e)
@@ -271,11 +277,12 @@ exports.activeMatching = async (req, res, next) => {
       { new: true }
     )
 
-    res.cookie('matchingTopDisplayUseingTime', updatedUserInfo.matchingTopDisplayUseingTime.getTime());
+    // res.cookie('matchingTopDisplayUseingTime', updatedUserInfo.matchingTopDisplayUseingTime.getTime());
     res.status(200).json({ 
       result: 'success',
       isActiveMatching: updatedUserInfo.isActiveMatching,
       isUseMatchingTopDisplay: isUseMatchingTopDisplay,
+      matchingTopDisplayUseingTime: updatedUserInfo.matchingTopDisplayUseingTime.getTime(),
     })
   } catch (e) {
     console.log(e)
@@ -329,14 +336,18 @@ exports.createToken = async function (req, res, next) {
       {expiresIn: '12h'}
     );
 
-    res.cookie('token', token);
-    res.cookie('gender', userInfo.gender);
-    res.cookie('nickname', userInfo.nickname);
-    res.cookie('matchingTopDisplayUseingTime', userInfo.matchingTopDisplayUseingTime.getTime());
+    // res.cookie('token', token);
+    // res.cookie('gender', userInfo.gender);
+    // res.cookie('nickname', userInfo.nickname);
+    // res.cookie('matchingTopDisplayUseingTime', userInfo.matchingTopDisplayUseingTime.getTime());
 
     let resUserInfo = {
       isAdmin: userInfo.roleName === 'admin' ? true : false,
       isActiveMatching: userInfo.isActiveMatching,
+      token: token,
+      gender: userInfo.gender,
+      nickname: userInfo.nickname,
+      matchingTopDisplayUseingTime: userInfo.matchingTopDisplayUseingTime.getTime(),
     }
     
     res.status(201).json({
