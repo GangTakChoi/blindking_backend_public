@@ -4,7 +4,9 @@ const userModel = require('../model/user_model')
 
 exports.setUserInfo = async (req, res, next) => {
   try {
-    const clientToken = req.cookies.token;
+    // const clientToken = req.cookies.token;
+    let clientToken = req.headers['authorization'];
+    if (typeof clientToken === 'string') clientToken = clientToken.replace('Bearer ', '')
 
     if (!clientToken) {
       next()
@@ -32,7 +34,9 @@ exports.setUserInfo = async (req, res, next) => {
 
 exports.verifyToken = async (req, res, next) => {
   try {
-    const clientToken = req.cookies.token;
+    // const clientToken = req.cookies.token;
+    let clientToken = req.headers['authorization'];
+    if (typeof clientToken === 'string') clientToken = clientToken.replace('Bearer ', '')
 
     if (!clientToken) {
       res.status(401).json({ errorMessage: 'unauthorized' });
@@ -73,7 +77,10 @@ exports.verifyToken = async (req, res, next) => {
 
 exports.verifyAdminToken = (req, res, next) => {
   try {
-    const clientToken = req.cookies.token;
+    // const clientToken = req.cookies.token;
+    let clientToken = req.headers['authorization'];
+    if (typeof clientToken === 'string') clientToken = clientToken.replace('Bearer ', '')
+
     const decoded = jwt.verify(clientToken, YOUR_SECRET_KEY);
 
     if (decoded && decoded.roleName === 'admin') {

@@ -21,7 +21,10 @@ var upload = multer({
     contentType: multerS3.AUTO_CONTENT_TYPE, // 자동을 콘텐츠 타입 세팅
     acl: 'public-read', // 클라이언트에서 자유롭게 가용하기 위함
     key: (req, file, cb) => {
-      const clientToken = req.cookies.token;
+      // const clientToken = req.cookies.token;
+      let clientToken = req.headers['authorization'];
+      if (typeof clientToken === 'string') clientToken = clientToken.replace('Bearer ', '')
+
       const decoded = jwt.verify(clientToken, YOUR_SECRET_KEY);
 
       switch (file.mimetype) {
