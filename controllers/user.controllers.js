@@ -336,11 +336,6 @@ exports.createToken = async function (req, res, next) {
       {expiresIn: '12h'}
     );
 
-    // res.cookie('token', token);
-    // res.cookie('gender', userInfo.gender);
-    // res.cookie('nickname', userInfo.nickname);
-    // res.cookie('matchingTopDisplayUseingTime', userInfo.matchingTopDisplayUseingTime.getTime());
-
     let resUserInfo = {
       isAdmin: userInfo.roleName === 'admin' ? true : false,
       isActiveMatching: userInfo.isActiveMatching,
@@ -604,8 +599,7 @@ exports.getSelfIntroduction = async function (req, res, next) {
 exports.getMachingPartnerList = async function (req, res, next) {
   try {
     let userId = res.locals.userId
-    let userInfo = await userModel.findOne({id: userId})
-    let userGender = userInfo.gender
+    let userGender = res.locals.gender
     let skip = req.query.skip === undefined ? 0 : Number(req.query.skip)
     if (isNaN(skip)) skip = 0
     let limit = req.query.limit === undefined ? 30 : Number(req.query.limit)
@@ -632,6 +626,12 @@ exports.getMachingPartnerList = async function (req, res, next) {
     let searchSubAreaCode = []
     if (typeof req.query.subAreaCodeList === 'string' && req.query.subAreaCodeList.length > 0) {
       searchSubAreaCode = req.query.subAreaCodeList.split(',')
+    }
+
+    let userInfo = await userModel.findOne({id: userId},{isActiveMatching: 1})
+    if (!userInfo.isActiveMatching) {
+      res.status(400).json({ errorMessage: '매칭이 활성화된 상태에서만 인연찾기가 가능합니다.' })
+      return
     }
 
     // 필터
@@ -695,9 +695,7 @@ exports.getMachingPartnerList = async function (req, res, next) {
     res.status(200).json(response)
   } catch (e) {
     console.log(e)
-    res.status(500).json({
-      errorMessage: "server error"
-    })
+    res.status(500).json({ errorMessage: "server error" })
   }
 }
 

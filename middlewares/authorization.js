@@ -34,8 +34,8 @@ exports.setUserInfo = async (req, res, next) => {
 
 exports.verifyToken = async (req, res, next) => {
   try {
-    // const clientToken = req.cookies.token;
     let clientToken = req.headers['authorization'];
+    
     if (typeof clientToken === 'string') clientToken = clientToken.replace('Bearer ', '')
 
     if (!clientToken) {
@@ -46,18 +46,22 @@ exports.verifyToken = async (req, res, next) => {
     const decoded = jwt.verify(clientToken, YOUR_SECRET_KEY);
 
     if (!decoded) {
-      res.clearCookie('token');
       res.status(401).json({ errorMessage: 'unauthorized' });
       return
     }
 
-    let userInfo = await userModel.findOne({_id: decoded.objectId}, { activeStopPrieodLastDate: 1 })
+    let userInfo = await userModel.findOne(
+      {_id: decoded.objectId}, 
+      { activeStopPrieodLastDate: 1 }
+    )
 
     if (Date.now() < userInfo.activeStopPrieodLastDate.getTime()) {
       let dateInfo = userInfo.activeStopPrieodLastDate
-      res.clearCookie('token');
+
       res.status(401).json({ 
-        errorMessage: `신고처리된 회원입니다.\n[${dateInfo.getFullYear()}-${dateInfo.getMonth()+1}-${dateInfo.getDate()} ${dateInfo.getHours()}:${dateInfo.getMinutes()}]까지 정지기간 입니다.` 
+        errorMessage: `신고처리된 회원입니다.\n
+        [${dateInfo.getFullYear()}-${dateInfo.getMonth()+1}-${dateInfo.getDate()} 
+          ${dateInfo.getHours()}:${dateInfo.getMinutes()}]까지 정지기간입니다.`
       });
       return
     }
@@ -77,7 +81,6 @@ exports.verifyToken = async (req, res, next) => {
 
 exports.verifyAdminToken = (req, res, next) => {
   try {
-    // const clientToken = req.cookies.token;
     let clientToken = req.headers['authorization'];
     if (typeof clientToken === 'string') clientToken = clientToken.replace('Bearer ', '')
 
