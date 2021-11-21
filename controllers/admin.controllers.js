@@ -1,5 +1,6 @@
 const userModel = require('../model/user_model')
 const questionListModel = require('../model/question_list_model')
+const createError = require('http-errors');
 
 exports.getQuestionList = async (req, res, next) => {
   try {
@@ -8,7 +9,7 @@ exports.getQuestionList = async (req, res, next) => {
     let userInfo = await userModel.findOne({_id: myObjectId}, {roleName: 1})
 
     if (userInfo.roleName !== 'admin') {
-      res.status(400).json({errorMessage: 'invalid request'})
+      next(createError(400, 'invalid request'))
       return
     }
 
@@ -17,7 +18,7 @@ exports.getQuestionList = async (req, res, next) => {
     res.status(200).json({result: 'success', questionList: questionList})
   } catch (error) {
     console.log(error)
-    res.status(500).json({errorMessage: 'server error'})
+    next(createError(500, 'server error'))
   }
 }
 
@@ -28,19 +29,19 @@ exports.addQuestion = async (req, res, next) => {
     let questionContent = req.body.content
 
     if (typeof questionInputType !== 'string' || questionInputType.length > 100) {
-      res.status(400).json({errorMessage: 'inputType invalid value'})
+      next(createError(400, 'inputType invalid value'))
       return
     }
 
     if (typeof questionContent !== 'string' || questionContent.length > 1000) {
-      res.status(400).json({errorMessage: 'content too long'})
+      next(createError(400, 'content too long'))
       return
     }
 
     let userInfo = await userModel.findOne({_id: myObjectId}, {roleName: 1})
 
     if (userInfo.roleName !== 'admin') {
-      res.status(400).json({errorMessage: 'invalid request'})
+      next(createError(400, 'invalid request'))
       return
     }
 
@@ -49,7 +50,7 @@ exports.addQuestion = async (req, res, next) => {
     .limit(1)
 
     if (questionLastOrderInfo.length < 1) {
-      res.status(400).json({errorMessage: 'question last order number search fail'})
+      next(createError(400, 'question last order number search fail'))
       return
     }
 
@@ -66,7 +67,7 @@ exports.addQuestion = async (req, res, next) => {
     res.status(200).json({ result: 'success', questionInfo: qestionInfo })
   } catch (error) {
     console.log(error)
-    res.status(500).json({errorMessage: 'server error'})
+    next(createError(500, 'server error'))
   }
 }
 
@@ -78,19 +79,19 @@ exports.putQuestInfo = async (req, res, next) => {
     let questionInputType = req.body.inputType
 
     if (typeof questionContent !== 'string' || questionContent.length > 1000) {
-      res.status(400).json({ errorMessage: 'content too long' })
+      next(createError(400, 'content too long'))
       return
     }
 
     if (typeof questionInputType !== 'string' || questionInputType.length > 100) {
-      res.status(400).json({ errorMessage: 'inputType invalid' })
+      next(createError(400, 'inputType invalid'))
       return
     }
 
     let userInfo = await userModel.findOne({_id: myObejctId}, {roleName: 1})
 
     if (!userInfo || userInfo.roleName !== 'admin') {
-      res.status(400).json({ errorMessage: 'invalid request' })
+      next(createError(400, 'invalid request'))
       return
     }
 
@@ -106,7 +107,7 @@ exports.putQuestInfo = async (req, res, next) => {
     res.status(200).json({ result:'success', questionInfo: updateedQuestionInfo })
   } catch {
     console.log(error)
-    res.status(500).json({ errorMessage: 'server error' })
+    next(createError(500, 'server error'))
   }
 }
 
@@ -115,14 +116,14 @@ exports.putQuestionOrderInfo = async (req, res, next) => {
     let questionOrderInfoList = req.body.questionOrderInfoList
 
     if (!Array.isArray(questionOrderInfoList)) {
-      res.status(400).json({ errorMessage: 'question order info invalid value' })
+      next(createError(400, 'question order info invalid value'))
       return
     }
 
     let questionCount = await questionListModel.countDocuments({ isDelete: false })
 
     if (questionOrderInfoList.length !== questionCount) {
-      res.status(400).json({ errorMessage: 'question count not equal' })
+      next(createError(400, 'question count not equal'))
       return
     }
 
@@ -133,7 +134,7 @@ exports.putQuestionOrderInfo = async (req, res, next) => {
     res.status(200).json({ result: 'success' })
   } catch (error) {
     console.log(error)
-    res.status(500).json({ errorMessage: 'server error' })
+    next(createError(500, 'server error'))
   }
 }
 
@@ -145,7 +146,7 @@ exports.deleteQuestion = async (req, res, next) => {
     let userInfo = await userModel.findOne({ _id: myObjectId }, { roleName: 1 })
 
     if (!userInfo || userInfo.roleName !== 'admin') {
-      res.status(400).json({ errorMessage: 'invalid request' })
+      next(createError(400, 'invalid request'))
       return
     }
 
@@ -170,6 +171,6 @@ exports.deleteQuestion = async (req, res, next) => {
     res.status(200).json({ result: 'success' })
   } catch (error) {
     console.log(error)
-    res.status(500).json({ errorMessage: 'server error' })
+    next(createError(500, 'server error'))
   }
 }

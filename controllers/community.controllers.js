@@ -5,6 +5,7 @@ const commentLikeModel = require('../model/comment_like_model')
 const categoryModel = require('../model/board_category_model')
 const userModel = require('../model/user_model')
 const userReportModel = require('../model/user_report_model')
+const createError = require('http-errors');
 
 exports.getBoardList = async (req, res, next) => {
   try {
@@ -32,7 +33,7 @@ exports.getBoardList = async (req, res, next) => {
       } else if (searchOption === 'nickname') {
         filter.$or = [{nickname: new RegExp(searchContent)}]
       } else {
-        res.status(400).json({errorMessage: 'bad request'})
+        next(createError(400, 'bad request'))
         return
       }
     }
@@ -79,9 +80,8 @@ exports.getBoardList = async (req, res, next) => {
     })
   } catch (err) {
     console.log(err)
-    res.status(500).json({errorMessage: 'server error'});
+    next(createError(500, 'server error'))
   }
-  
 }
 
 exports.fileupload = async function(req, res, nest) {
@@ -96,17 +96,14 @@ exports.fileupload = async function(req, res, nest) {
         errorMessage = '파일 사이즈가 너무 큽니다. (1.5MB 제한)'
       }
 
-      res.status(500).json({
-        "error": {
-          "message": errorMessage
-        }
-      });
+      console.log('이미지 업로드 실패')
+      
+      // CKEditor5 Error 형식에 맞게 데이터 전달
+      res.status(500).json({ "error": { "message": errorMessage } });
       return
     }
 
-    res.status(200).json({
-      "url": req.file.location
-    });
+    res.status(200).json({ "url": req.file.location });
   })
 }
 
@@ -120,7 +117,7 @@ exports.deleteComment = async (req, res, next) => {
 
     // 유효성 검사
     if (!commentInfo) {
-      res.status(400).json({ errorMessage: 'invalid request' });
+      next(createError(400, 'invalid request'))
       return
     }
 
@@ -164,9 +161,7 @@ exports.deleteComment = async (req, res, next) => {
     });
   } catch (e) {
     console.log(e)
-    res.status(500).json({
-      result: 'server error'
-    });
+    next(createError(500, 'server error'))
   }
 }
 
@@ -185,7 +180,7 @@ exports.getCategory = async (req, res, next) => {
     res.status(200).json({ normalCategory: normalCategory, adminCategory: adminCategory })
   } catch (error) {
     console.log(error)
-    res.status(500).json({ errorMessage: 'server error' })
+    next(createError(500, 'server error'))
   }
 }
 
@@ -197,7 +192,7 @@ exports.deleteCategory = async (req, res, next) => {
     let userInfo = await userModel.findOne({_id: myObjectId}, {roleName: 1})
 
     if (userInfo.roleName !== 'admin') {
-      res.status(400).json({errorMessage: 'invalid request'})
+      next(createError(400, 'invalid request'))
       return
     }
 
@@ -206,7 +201,7 @@ exports.deleteCategory = async (req, res, next) => {
     res.status(200).json({ result: 'success' })
   } catch (error) {
     console.log(error)
-    res.status(500).json({ errorMessage: 'server error' })
+    next(createError(500, 'server error'))
   }
 }
 
@@ -217,21 +212,21 @@ exports.putCategoy = async (req, res, next) => {
     let categoryName = req.body.categoryName
 
     if (categoryName.trim() === '') {
-      res.status(400).json({ errorMessage: 'invalid request' })
+      next(createError(400, 'invalid request'))
       return
     }
 
     let userInfo = await userModel.findOne({ _id: myObjectId }, { roleName: 1 })
 
     if (userInfo.roleName !== 'admin') {
-      res.status(400).json({ errorMessage: 'invalid request' })
+      next(createError(400, 'invalid request'))
       return
     }
 
     let categoryInfo = await categoryModel.findOne({ _id: categoryId })
 
     if (!categoryInfo) {
-      res.status(400).json({ errorMessage: 'invalid request' })
+      next(createError(400, '카테고리가 존재하지 않습니다.'))
       return
     }
 
@@ -244,7 +239,7 @@ exports.putCategoy = async (req, res, next) => {
       } else {
         errorMessage = '존재하는 카테고리 중에 중복된 카테고리 명이 존재합니다.'
       }
-      res.status(400).json({ errorMessage: errorMessage })
+      next(createError(400, errorMessage))
       return
     }
 
@@ -253,7 +248,7 @@ exports.putCategoy = async (req, res, next) => {
     res.status(200).json({ result: 'success', categoryName: savedCategoryInfo.name })
   } catch (error) {
     console.log(error)
-    res.status(500).json({ errorMessage: 'server error' })
+    next(createError(500, 'server error'))
   }
 }
 
@@ -266,12 +261,12 @@ exports.addCategory = async (req, res, next) => {
     let userInfo = await userModel.findOne({ _id: myObjectId }, { roleName: 1 })
 
     if (userInfo.roleName !== 'admin') {
-      res.status(400).json({ errorMessage: 'invalid request' })
+      next(createError(400, 'invalid request'))
       return
     }
 
     if (!categoryType || !categoryName || categoryName.trim() === '' || categoryType.trim() === '') {
-      res.status(400).json({ errorMessage: 'invalid request' })
+      next(createError(400, 'invalid request'))
       return
     }
 
@@ -284,7 +279,7 @@ exports.addCategory = async (req, res, next) => {
       } else {
         errorMessage = '존재하는 카테고리 중에 중복된 카테고리 명이 존재합니다.'
       }
-      res.status(400).json({ errorMessage: errorMessage })
+      next(createError(400, errorMessage))
       return
     }
 
@@ -298,7 +293,7 @@ exports.addCategory = async (req, res, next) => {
     res.status(200).json({ result: 'success' })
   } catch (error) {
     console.log(error)
-    res.status(500).json({errorMessage: 'server error'})
+    next(createError(500, 'server error'))
   }
 }
 
@@ -312,24 +307,24 @@ exports.reportBoard = async (req, res, next) => {
     let content = req.body.reportContent
 
     if (typeof target !== 'string' || target.length > 100) {
-      res.status(400).json({ errorMessage: 'invalid request' })
+      next(createError(400, 'invalid request'))
       return
     }
 
     if (typeof type !== 'string' || target.length > 100) {
-      res.status(400).json({ errorMessage: 'invalid request' })
+      next(createError(400, 'invalid request'))
       return
     }
 
     if (typeof content !== 'string' || content.length > 5000) {
-      res.status(400).json({ errorMessage: '신고 내용이 너무 깁니다.' })
+      next(createError(400, '신고 내용이 너무 깁니다.'))
       return
     }
 
     let boardInfo = await boardModel.findOne({_id: boardId})
     
     if (!boardInfo) {
-      res.status(400).json({ errorMessage: 'invalid request' })
+      next(createError(400, 'invalid request'))
       return
     }
 
@@ -350,7 +345,7 @@ exports.reportBoard = async (req, res, next) => {
     res.status(200).json({ result: 'success' })
   } catch (error) {
     console.log(error)
-    res.status(500).json({ errorMessage: 'server error' })
+    next(createError(500, 'server error'))
   }
 }
 
@@ -365,24 +360,24 @@ exports.reportComment = async (req, res, next) => {
     let content = req.body.reportContent
 
     if (typeof target !== 'string' || target.length > 100) {
-      res.status(400).json({ errorMessage: 'invalid request' })
+      next(createError(400, 'invalid request'))
       return
     }
 
     if (typeof type !== 'string' || target.length > 100) {
-      res.status(400).json({ errorMessage: 'invalid request' })
+      next(createError(400, 'invalid request'))
       return
     }
 
     if (typeof content !== 'string' || content.length > 5000) {
-      res.status(400).json({ errorMessage: '신고 내용이 너무 깁니다.' })
+      next(createError(400, '신고 내용이 너무 깁니다.'))
       return
     }
 
     let commentInfo = await boardCommentModel.findOne({_id: commentId, boardId: boardId})
 
     if (!commentInfo) {
-      res.status(400).json({ errorMessage: 'invalid request' })
+      next(createError(400, 'invalid request'))
       return
     }
 
@@ -403,7 +398,7 @@ exports.reportComment = async (req, res, next) => {
     res.status(200).json({ result: 'success' })
   } catch (error) {
     console.log(error)
-    res.status(500).json({ errorMessage: 'server error' })
+    next(createError(500, 'server error'))
   }
 }
 
@@ -416,14 +411,14 @@ exports.registSubComment = async (req, res, next) => {
     let userId = res.locals.userObjectId
 
     if (!req.body.content || typeof req.body.content !== 'string' || req.body.content.length > 5000) {
-      res.status(400).json({ errorMessage: 'invalid request' });
+      next(createError(400, 'invalid request'))
       return
     }
 
     let rootCommentInfo = await boardCommentModel.findOne({ _id: rootCommentId, rootCommentId: null, boardId: boardId, isDelete: false })
 
     if (!rootCommentInfo) {
-      res.status(400).json({ errorMessage: '삭제된 댓글입니다.' })
+      next(createError(400, '삭제된 댓글입니다.'))
       return
     }
 
@@ -482,7 +477,7 @@ exports.registSubComment = async (req, res, next) => {
 
   } catch (error) {
     console.log(error)
-    res.status(500).json({ errorMessage: 'server error' })
+    next(createError(500, 'server error'))
   }
 }
 
@@ -496,7 +491,7 @@ exports.getSubComment = async (req, res, next) => {
     let rootCommentInfo = await boardCommentModel.findOne({ _id: rootCommentId, rootCommentId: null, isDelete: false }, { _id: 1 })
 
     if (!rootCommentInfo) {
-      res.status(400).json({ errorMessage: 'invalid request' })
+      next(createError(400, 'invalid request'))
       return
     }
 
@@ -525,7 +520,7 @@ exports.getSubComment = async (req, res, next) => {
     res.status(200).json({ result: 'success', subCommentList: subCommentList })
   } catch (error) {
     console.log(error)
-    res.status(500).json({ errorMessage: 'server error' })
+    next(createError(500, 'server error'))
   }
 }
 
@@ -537,7 +532,7 @@ exports.writeBoardOfComment = async (req, res, next) => {
     let gender = res.locals.gender
 
     if (!req.body.content || typeof req.body.content !== 'string' || req.body.content.length > 5000) {
-      res.status(400).json({ errorMessage: 'invalid request' });
+      next(createError(400, 'invalid request'))
       return
     }
 
@@ -545,7 +540,7 @@ exports.writeBoardOfComment = async (req, res, next) => {
     
     // 해당 게시판 유효성 검사
     if (!boardResult) {
-      res.status(400).json({ errorMessage: 'invalid request' });
+      next(createError(400, 'invalid request'))
       return
     }
 
@@ -589,9 +584,7 @@ exports.writeBoardOfComment = async (req, res, next) => {
     });
   } catch (err) {
     console.log(err)
-    res.status(500).json({
-      result: 'server error'
-    });
+    next(createError(500, 'server error'))
   }
 }
 
@@ -606,7 +599,7 @@ exports.deleteBoard = async (req, res, next) => {
     )
 
     if (!boardInfo) {
-      res.status(400).json({ errorMessage: 'invalid request' })
+      next(createError(400, 'invalid request'))
       return
     }
 
@@ -614,7 +607,7 @@ exports.deleteBoard = async (req, res, next) => {
       let userInfo = await userModel.findOne({ _id: myObjectId }, {roleName: 1})
 
       if (userInfo.roleName !== 'admin') {
-        res.status(400).json({ errorMessage: 'invalid request' })
+        next(createError(400, 'invalid request'))
         return
       }
     }
@@ -627,29 +620,29 @@ exports.deleteBoard = async (req, res, next) => {
     res.status(200).json({ result: 'success' })
   } catch (error) {
     console.log(error)
-    res.status(500).json({ errorMessage: 'server error' })
+    next(createError(500, 'server error'))
   }
 }
 
 exports.modifyBoard = async (req, res, next) => {
   try {
     if (!req.body.title.trim()) {
-      res.status(400).json({ errorMessage: '제목을 입력해주세요.' });
+      next(createError(400, '제목을 입력해주세요.'))
       return
     }
 
     if (req.body.title.length > 100) {
-      res.status(400).json({ errorMessage: '제목은 100자 이내로 입력 가능합니다.' });
+      next(createError(400, '제목은 100자 이내로 입력 가능합니다.'))
       return
     }
 
     if (!req.body.content.trim()) {
-      res.status(400).json({ errorMessage: '내용을 입력해주세요.' });
+      next(createError(400, '내용을 입력해주세요.'))
       return
     }
 
     if (!req.body.content.length > 50000) {
-      res.status(400).json({ errorMessage: '내용이 너무 깁니다.' });
+      next(createError(400, '내용이 너무 깁니다.'))
       return
     }
 
@@ -665,7 +658,7 @@ exports.modifyBoard = async (req, res, next) => {
     )
 
     if (!boardInfo) {
-      res.status(400).json({errorMessage: 'invalid request'});
+      next(createError(400, 'invalid request'))
       return
     }
 
@@ -686,9 +679,7 @@ exports.modifyBoard = async (req, res, next) => {
     res.status(200).json({ result: 'success' });
   } catch (err) {
     console.log(err)
-    res.status(500).json({
-      result: 'server error'
-    });
+    next(createError(500, 'server error'))
   }
 }
 
@@ -702,7 +693,7 @@ exports.getBoardComment = async (req, res, next) => {
     let boardInfo = await boardModel.findOne({ _id: boardId, isDelete: false }, { _id: 1 })
 
     if (!boardInfo) {
-      res.status(400).json({ errorMessage: "invalid request" })
+      next(createError(400, 'invalid request'))
       return
     }
 
@@ -752,48 +743,48 @@ exports.getBoardComment = async (req, res, next) => {
     res.status(200).json(response)
   } catch (error) {
     console.log(error)
-    res.status(500).json({ errorMessage: 'server error' })
+    next(createError(500, 'server error'))
   }
 }
 
 exports.writeBoard = async (req, res, next) => {
   try {
     if (!req.body.title.trim()) {
-      res.status(400).json({ errorMessage: '제목을 입력해주세요.' });
+      next(createError(400, '제목을 입력해주세요.'))
       return
     }
 
     if (req.body.title.length > 100) {
-      res.status(400).json({ errorMessage: '제목은 100자 이내로 입력 가능합니다.' });
+      next(createError(400, '제목은 100자 이내로 입력 가능합니다.'))
       return
     }
 
     if (!req.body.content.trim()) {
-      res.status(400).json({ errorMessage: '내용을 입력해주세요.' });
+      next(createError(400, '내용을 입력해주세요.'))
       return
     }
 
     if (!req.body.content.length > 50000) {
-      res.status(400).json({ errorMessage: '내용이 너무 깁니다.' });
+      next(createError(400, '내용이 너무 깁니다.'))
       return
     }
 
     if (!req.body.categoryId) {
-      res.status(400).json({ errorMessage: 'invalid category id' });
+      next(createError(400, 'invalid category id'))
       return
     }
 
     let categoryInfo = await categoryModel.findOne({_id: req.body.categoryId, isDelete: false}, {_id: 1, type: 1})
 
     if (!categoryInfo) {
-      res.status(400).json({ errorMessage: 'invalid category id' });
+      next(createError(400, 'invalid category id'))
       return
     }
 
     if (categoryInfo.type === 'admin') {
       let userInfo = await userModel.findOne({_id: res.locals.userObjectId}, {roleName: 1})
       if (userInfo.roleName !== 'admin') {
-        res.status(400).json({ errorMessage: 'invalid category id' })
+        next(createError(400, '권한 없음'))
         return
       }
     }
@@ -821,14 +812,10 @@ exports.writeBoard = async (req, res, next) => {
   
     await boardModel.createOrSave(boardInfo)
   
-    res.status(200).json({
-      result: 'success'
-    });
+    res.status(200).json({ result: 'success' });
   } catch (err) {
     console.log(err)
-    res.status(500).json({
-      result: 'server error'
-    });
+    next(createError(500, 'server error'))
   }
 }
 
@@ -840,7 +827,7 @@ exports.putCommentLike = async (req, res, next) => {
     let status = req.body.status
 
     if (status !== 'like' && status !== 'dislike') {
-      res.status(400).json({ errorMessage: 'invalid requset' })
+      next(createError(400, 'invalid requset'))
       return
     }
 
@@ -969,7 +956,7 @@ exports.putCommentLike = async (req, res, next) => {
     res.status(200).json(response)
   } catch (error) {
     console.log(error)
-    res.status(500).json({errorMessage: 'server error'})
+    next(createError(500, 'server error'))
   }
 }
 
@@ -978,9 +965,7 @@ exports.putBoardLike = async (req, res, next) => {
     let isLike = req.body.isLike
 
     if (typeof isLike !== 'boolean') {
-      res.status(400).json({
-        result: 'bad request'
-      });
+      next(createError(400, 'bad request'))
       return
     }
 
@@ -1105,9 +1090,7 @@ exports.putBoardLike = async (req, res, next) => {
     res.status(200).json({result: 'success'})
   } catch (err) {
     console.log(err)
-    res.status(500).json({
-      result: 'server error'
-    });
+    next(createError(500, 'server error'))
   }
 }
 
@@ -1131,7 +1114,7 @@ exports.getBoardDetail = async (req, res, next) => {
     ])
 
     if (!boardInfo || !Array.isArray(boardInfo) || boardInfo.length < 1) {
-      res.status(400).json({ errorMessage: '삭제된 게시글 입니다.' })
+      next(createError(400, '삭제된 게시글 입니다.'))
       return
     }
 
@@ -1170,8 +1153,6 @@ exports.getBoardDetail = async (req, res, next) => {
     });
   } catch (err) {
     console.log(err)
-    res.status(500).json({
-      result: 'server error'
-    });
+    next(createError(500, 'server error'))
   }
 }

@@ -1,10 +1,10 @@
 const jwt = require('jsonwebtoken');
 const YOUR_SECRET_KEY = process.env.SECRET_KEY;
+const createError = require('http-errors');
 const userModel = require('../model/user_model')
 
 exports.setUserInfo = async (req, res, next) => {
   try {
-    // const clientToken = req.cookies.token;
     let clientToken = req.headers['authorization'];
     if (typeof clientToken === 'string') clientToken = clientToken.replace('Bearer ', '')
 
@@ -28,7 +28,7 @@ exports.setUserInfo = async (req, res, next) => {
     next();
   } catch (error) {
     console.log(error)
-    res.status(401).json({ errorMessage: 'server error' });
+    next(createError(500, 'server error'))
   }
 }
 
@@ -39,30 +39,29 @@ exports.verifyToken = async (req, res, next) => {
     if (typeof clientToken === 'string') clientToken = clientToken.replace('Bearer ', '')
 
     if (!clientToken) {
-      res.status(401).json({ errorMessage: 'unauthorized' });
+      next(createError(401, '권한 없음'))
       return
     }
 
     const decoded = jwt.verify(clientToken, YOUR_SECRET_KEY);
 
     if (!decoded) {
-      res.status(401).json({ errorMessage: 'unauthorized' });
+      next(createError(401, '권한 없음'))
       return
     }
 
     let userInfo = await userModel.findOne(
-      {_id: decoded.objectId}, 
+      { _id: decoded.objectId }, 
       { activeStopPrieodLastDate: 1 }
     )
 
+    // 활동정지 기간인 경우
     if (Date.now() < userInfo.activeStopPrieodLastDate.getTime()) {
       let dateInfo = userInfo.activeStopPrieodLastDate
-
-      res.status(401).json({ 
-        errorMessage: `신고처리된 회원입니다.\n
-        [${dateInfo.getFullYear()}-${dateInfo.getMonth()+1}-${dateInfo.getDate()} 
-          ${dateInfo.getHours()}:${dateInfo.getMinutes()}]까지 정지기간입니다.`
-      });
+      
+      next(createError(401, `신고처리된 회원입니다.\n
+      [${dateInfo.getFullYear()}-${dateInfo.getMonth()+1}-${dateInfo.getDate()} 
+        ${dateInfo.getHours()}:${dateInfo.getMinutes()}]까지 정지기간입니다.`))
       return
     }
 
@@ -74,8 +73,16 @@ exports.verifyToken = async (req, res, next) => {
     next();
   } catch (err) {
     console.log(err)
-    res.clearCookie('token');
-    res.status(401).json({ errorMessage: '로그인 세션이 만료되었습니다.' });
+
+    let statusCode = 500
+    let errorMessage = 'server error'
+
+    if (err.name === 'TokenExpiredError') {
+      statusCode = 401
+      errorMessage = '로그인 세션이 만료되었습니다.'
+    }
+
+    next(createError(statusCode, errorMessage))
   }
 };
 
@@ -94,9 +101,18 @@ exports.verifyAdminToken = (req, res, next) => {
       res.locals.gender = decoded.gender;
       next();
     } else {
-      res.status(401).json({ errorMessage: 'unauthorized' });
+      next(createError(401, '권한 없음'))
     }
   } catch (err) {
-    res.status(401).json({ errorMessage: '로그인 세션이 만료되었습니다.' })
+    console.log(err)
+    let statusCode = 500
+    let errorMessage = 'server error'
+
+    if (err.name === 'TokenExpiredError') {
+      statusCode = 401
+      errorMessage = '로그인 세션이 만료되었습니다.'
+    }
+
+    next(createError(statusCode, errorMessage))
   }
 }

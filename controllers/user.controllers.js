@@ -8,6 +8,7 @@ const areaModel = require('../model/area_model')
 const commonModel = require('../model/common_model')
 const questionListModel = require('../model/question_list_model')
 const userReportModel = require('../model/user_report_model')
+const createError = require('http-errors');
 const mongoose = require('mongoose')
 
 exports.addUser = async function (req, res, next) {
@@ -24,49 +25,49 @@ exports.addUser = async function (req, res, next) {
     let idValiddation = /^[a-zA-Z0-9]*$/;
 
     if (!idValiddation.test(userId)) {
-      res.status(400).json({ errorMessage: '아이디는 영문자+숫자로만 구성 할 수 있습니다.' });
+      next(createError(400, '아이디는 영문자+숫자로만 구성 할 수 있습니다.'))
       return
     }
 
     if (userId.length < 4 || userId.length > 26) {
-      res.status(400).json({ errorMessage: '아이디는 4~26자로 제한됩니다.' });
+      next(createError(400, '아이디는 4~26자로 제한됩니다.'))
       return
     }
 
     let tempResult = await userModel.findOne({id: userId}, {id: 1})
 
     if (tempResult !== null) {
-      res.status(400).json({ errorMessage: '중복된 아이디입니다.' });
+      next(createError(400, '중복된 아이디입니다.'))
       return
     }
 
     // 비번 유효성 검사
     if (userPw.length < 6 || userPw.length > 36) {
-      res.status(400).json({ errorMessage: '비밀번호 길이제한을 지켜주세요.' });
+      next(createError(400, '비밀번호 길이제한을 지켜주세요.'))
       return
     }
 
     if (userPw !== userPwRepeat) {
-      res.status(400).json({ errorMessage: '비밀번호 재입력 값이 일치하지 않습니다.' });
+      next(createError(400, '비밀번호 재입력 값이 일치하지 않습니다.'))
       return
     }
 
     // 닉네임 유효성 검사
     if (userNickname.trim().length <= 0 || userNickname.length > 16) {
-      res.status(400).json({ errorMessage: '닉네임 길이제한을 지켜주세요.' });
+      next(createError(400, '닉네임 길이제한을 지켜주세요.'))
       return
     }
 
     tempResult = await userModel.findOne({nickname: userNickname}, {nickname: 1})
 
     if (tempResult !== null) {
-      res.status(400).json({ errorMessage: '중복된 닉네임입니다.' });
+      next(createError(400, '중복된 닉네임입니다.'))
       return
     }
 
     // 성별 유효성 검사
     if (userGender !== 'male' && userGender !== 'female') {
-      res.status(400).json({ errorMessage: 'invalid request' });
+      next(createError(400, 'invalid request'))
       return
     }
 
@@ -90,9 +91,9 @@ exports.addUser = async function (req, res, next) {
     await userModel.create(userInfo)
 
     res.status(201).json({ result: 'success' })
-  } catch (e) {
-    console.log(e)
-    res.status(500).json({ errorMessage: 'server error' });
+  } catch (error) {
+    console.log(error)
+    next(createError(500, 'server error'))
   }
 };
 
@@ -114,7 +115,6 @@ exports.useMatchingTopDisplay = async (req, res, next) => {
         { new: true }
       )
       
-      // res.cookie('matchingTopDisplayUseingTime', updatedUserInfo.matchingTopDisplayUseingTime.getTime());
       res.status(200).json({ 
         matchingTopDisplayUseingTime: updatedUserInfo.matchingTopDisplayUseingTime.getTime()
       })
@@ -142,7 +142,6 @@ exports.useMatchingTopDisplay = async (req, res, next) => {
       if (displayDiffMin < 10) displayDiffMin = '0' + displayDiffMin
       if (displayDiffSec < 10) displayDiffSec = '0' + displayDiffSec
 
-      // res.cookie('matchingTopDisplayUseingTime', matchingTopDisplayUseingTime.getTime());
       res.status(400).json({
         matchingTopDisplayUseingTime: matchingTopDisplayUseingTime.getTime(),
         errorMessage: `재사용 대기시간이 ${displayDiffHour}시 ${displayDiffMin}분 ${displayDiffSec}초 남았습니다.`
@@ -155,16 +154,15 @@ exports.useMatchingTopDisplay = async (req, res, next) => {
         { new: true }
       )
       
-      // res.cookie('matchingTopDisplayUseingTime', updatedUserInfo.matchingTopDisplayUseingTime.getTime());
       res.status(200).json({
         matchingTopDisplayUseingTime: updatedUserInfo.matchingTopDisplayUseingTime.getTime()
       })
       return
     }
     
-  } catch (e) {
-    console.log(e)
-    res.status(500).json({errorMessage: 'server error'})
+  } catch (error) {
+    console.log(error)
+    next(createError(500, 'server error'))
   }
 }
 
@@ -176,19 +174,19 @@ exports.putActiveStatus = async (req, res, next) => {
     let adminComment = req.body.content
 
     if (typeof stopPrieod !== 'string' || stopPrieod.length > 20) {
-      res.status(400).json({ errorMessage: 'invalid request' })
+      next(createError(400, 'invalid request'))
       return
     }
 
     if (typeof adminComment !== 'string' || adminComment.length > 5000) {
-      res.status(400).json({ errorMessage: 'content too long (5000자 이내)' })
+      next(createError(400, 'content too long (5000자 이내)'))
       return
     }
 
     let myUserInfo = await userModel.findOne({ _id: myObjectId }, { roleName: 1 })
 
     if (!myUserInfo || myUserInfo.roleName !== 'admin') {
-      res.status(400).json({ errorMessage: 'invalid request' })
+      next(createError(400, 'invalid request'))
       return
     }
 
@@ -207,7 +205,7 @@ exports.putActiveStatus = async (req, res, next) => {
     } else if (stopPrieod === '영구정지') {
       activeStopPrieodLastDate.setFullYear(activeStopPrieodLastDate.getFullYear() + 80)
     } else {
-      res.status(400).json({ errorMessage: 'invalid request' })
+      next(createError(400, 'invalid request'))
       return
     }
 
@@ -229,7 +227,7 @@ exports.putActiveStatus = async (req, res, next) => {
     res.status(200).json({result: 'success'})
   } catch (error) {
     console.log(error)
-    res.status(500).json({errorMessage: 'server error'})
+    next(createError(500, 'server error'))
   }
 }
 
@@ -248,7 +246,7 @@ exports.activeMatching = async (req, res, next) => {
     if (!userInfo.isActiveMatching) {
       // 필수 자기소개작성 목록 체크 및 유효성 검증
       if (userInfo.mbti === 'unkown' || !userInfo.birthYear || !userInfo.region || !userInfo.region.rootAreaCode || !userInfo.region.subAreaCode) {
-        res.status(400).json({ errorMessage: '자기소개작성에서 MBTI, 출생년도, 지역을 설정하셔야\n매칭활성화가 가능합니다.' })
+        next(createError(400, '자기소개작성에서 MBTI, 출생년도, 지역을 설정하셔야\n매칭활성화가 가능합니다.'))
         return
       }
 
@@ -260,7 +258,7 @@ exports.activeMatching = async (req, res, next) => {
       let result = await areaModel.findOne(filter)
 
       if (!result) {
-        res.status(400).json({ errorMessage: '설정된 지역이 유효하지 않습니다.' })
+        next(createError(400, '설정된 지역이 유효하지 않습니다.'))
         return
       }
 
@@ -277,16 +275,15 @@ exports.activeMatching = async (req, res, next) => {
       { new: true }
     )
 
-    // res.cookie('matchingTopDisplayUseingTime', updatedUserInfo.matchingTopDisplayUseingTime.getTime());
     res.status(200).json({ 
       result: 'success',
       isActiveMatching: updatedUserInfo.isActiveMatching,
       isUseMatchingTopDisplay: isUseMatchingTopDisplay,
       matchingTopDisplayUseingTime: updatedUserInfo.matchingTopDisplayUseingTime.getTime(),
     })
-  } catch (e) {
-    console.log(e)
-    res.status(500).json({ errorMessage: 'server error' });
+  } catch (error) {
+    console.log(error)
+    next(createError(500, 'server error'))
   }
 }
 
@@ -310,17 +307,16 @@ exports.createToken = async function (req, res, next) {
     const userInfo = await userModel.findOneByIdPw(userId, encryptedUserPw)
 
     if (!userInfo) {
-      res.status(400).json({ errorMessage: '로그인 실패' });
+      next(createError(400, '로그인 실패'))
       return
     }
     
     // 활동 정지 여부 확인
     if (Date.now() < userInfo.activeStopPrieodLastDate.getTime()) {
       let dateInfo = userInfo.activeStopPrieodLastDate
-      res.clearCookie('token');
-      res.status(401).json({ 
-        errorMessage: `신고처리된 회원입니다.\n[${dateInfo.getFullYear()}-${dateInfo.getMonth()+1}-${dateInfo.getDate()} ${dateInfo.getHours()}:${dateInfo.getMinutes()}]까지 정지기간 입니다.` 
-      });
+      next(createError(401, `신고처리된 회원입니다.\n
+      [${dateInfo.getFullYear()}-${dateInfo.getMonth()+1}-${dateInfo.getDate()} 
+        ${dateInfo.getHours()}:${dateInfo.getMinutes()}]까지 정지기간 입니다.`))
       return
     }
 
@@ -349,9 +345,9 @@ exports.createToken = async function (req, res, next) {
       result: 'ok',
       userInfo: resUserInfo,
     });
-  } catch (err) {
-    console.log(err)
-    res.status(500).json({errorMessage: 'server error'})
+  } catch (error) {
+    console.log(error)
+    next(createError(500, 'server error'))
   }
 };
 
@@ -372,7 +368,7 @@ exports.setSelfIntroduction = async function (req, res, next) {
 
     // 질문 정보 유효성 검사
     if (!Array.isArray(reqUserQuestionList)) {
-      res.status(400).json({ errorMessage: 'invaild request' });
+      next(createError(400, 'invalid request'))
       return
     }
 
@@ -381,11 +377,11 @@ exports.setSelfIntroduction = async function (req, res, next) {
 
     reqUserQuestionList.forEach((questionInfo) => {
       if (typeof questionInfo.answer !== 'string') {
-        res.status(400).json({ errorMessage: 'question answer type error' });
+        next(createError(400, 'question answer type error'))
         return
       }
       if (questionInfo.answer.length > 5000) {
-        res.status(400).json({ errorMessage: 'question answer too long' });
+        next(createError(400, 'question answer too long (5000자 이하)'))
         return
       }
 
@@ -400,7 +396,7 @@ exports.setSelfIntroduction = async function (req, res, next) {
     let resultCount = await questionListModel.countDocuments({ _id: { $in:  questionIdList} })
 
     if (questionIdList.length !== resultCount) {
-      res.status(400).json({ errorMessage: 'invaild request' });
+      next(createError(400, 'invalid request'))
       return
     }
 
@@ -412,7 +408,7 @@ exports.setSelfIntroduction = async function (req, res, next) {
     const fullAgeBirthYear = nowDate.getFullYear() - 19;	// 올해 성년 출생년도
 
     if (isNaN(userBirthYear) || userBirthYear < 1900 || userBirthYear > fullAgeBirthYear) {
-      res.status(400).json({ errorMessage: 'invaild request' });
+      next(createError(400, 'invalid request'))
       return
     }
 
@@ -420,7 +416,7 @@ exports.setSelfIntroduction = async function (req, res, next) {
     let mbtiInfo = await commonModel.findOne({key:'mbti'})
 
     if (!mbtiInfo.data.includes(userMBTI)) {
-      res.status(400).json({ errorMessage: 'invaild request' });
+      next(createError(400, 'invalid request'))
       return
     }
 
@@ -437,7 +433,7 @@ exports.setSelfIntroduction = async function (req, res, next) {
 
       // 지역 코드 유효성 검사
       if (!areaInfoList || !Array.isArray(areaInfoList) || areaInfoList.length !== 2) {
-        res.status(400).json({ errorMessage: 'invaild request' });
+        next(createError(400, 'invalid request'))
         return
       }
 
@@ -459,7 +455,7 @@ exports.setSelfIntroduction = async function (req, res, next) {
     res.status(200).json({ result: 'success' });
   } catch (e) {
     console.log(e)
-    res.status(500).json({ errorMessage: 'server error' });
+    next(createError(500, 'server error'))
   }
 };
 
@@ -554,7 +550,7 @@ exports.getMypageInfo = async function (req, res, next) {
     })
   } catch (err) {
     console.log(err)
-    res.status(500).json({ errorMessage: 'server error' })
+    next(createError(500, 'server error'))
   }
 }
 
@@ -565,7 +561,7 @@ exports.getSelfIntroduction = async function (req, res, next) {
     let userInfo = await userModel.findOneBy_Id(userObjectId)
 
     if (!userInfo) {
-      res.status(401).json({ error: 'unauthorized' })
+      next(createError(401, '권한 없음'))
       return
     }
 
@@ -590,9 +586,9 @@ exports.getSelfIntroduction = async function (req, res, next) {
     }
 
     res.status(200).json(response)
-  } catch (e) {
-    console.log(e)
-    res.status(500).json({ errorMessage: 'server error' })
+  } catch (error) {
+    console.log(error)
+    next(createError(500, 'server error'))
   }
 };
 
@@ -630,7 +626,7 @@ exports.getMachingPartnerList = async function (req, res, next) {
 
     let userInfo = await userModel.findOne({id: userId},{isActiveMatching: 1})
     if (!userInfo.isActiveMatching) {
-      res.status(400).json({ errorMessage: '매칭이 활성화된 상태에서만 인연찾기가 가능합니다.' })
+      next(createError(400, '매칭이 활성화된 상태에서만 인연찾기가 가능합니다.'))
       return
     }
 
@@ -693,9 +689,9 @@ exports.getMachingPartnerList = async function (req, res, next) {
     }
 
     res.status(200).json(response)
-  } catch (e) {
-    console.log(e)
-    res.status(500).json({ errorMessage: "server error" })
+  } catch (error) {
+    console.log(error)
+    next(createError(500, 'server error'))
   }
 }
 
@@ -708,7 +704,8 @@ exports.getMachingPartnerDetail = async function (req, res, next) {
     )
 
     if (!userDetailInfo) {
-      res.status(400).json({errorMessage: 'invalid request'})
+      next(createError(400, 'invalid request'))
+      return
     }
 
     let questionList = await questionListModel.find({ isShow: true, isDelete: false }, { content: 1 })
@@ -719,11 +716,9 @@ exports.getMachingPartnerDetail = async function (req, res, next) {
       questionList: questionList,
     });
 
-  } catch (e) {
-    console.log(e)
-    res.status(500).json({
-      errorMessage: "server error"
-    })
+  } catch (error) {
+    console.log(error)
+    next(createError(500, 'server error'))
   }
 }
 
@@ -736,9 +731,8 @@ exports.requestFriend = async function (req, res, next) {
 
     // 친구 id 유효성 체크
     if (friendUserInfo === null) {
-      res.status(400).json({
-        errorMessage: "invalid friend ID"
-      })
+      next(createError(400, 'invalid friend ID'))
+      return
     }
 
     // 친구의 나에 대한 친구관계 조회
@@ -796,7 +790,7 @@ exports.requestFriend = async function (req, res, next) {
           res.status(200).json({result: "acceptFriend"})
         }
       } else {
-        res.status(400).json({result: "unkown"})
+        next(createError(400, 'status of friend relation is invalid type'))
       }
 
       return
@@ -824,11 +818,9 @@ exports.requestFriend = async function (req, res, next) {
       return
     }
   
-  } catch (err) {
-    console.log(err)
-    res.status(500).json({
-      errorMessage: "server error"
-    })
+  } catch (error) {
+    console.log(error)
+    next(createError(500, 'server error'))
   }
 } 
 
@@ -841,9 +833,7 @@ exports.acceptFriend = async function (req, res, next) {
 
     // 친구 id 유효성 체크
     if (friendUserInfo === null) {
-      res.status(400).json({
-        errorMessage: "invalid friend ID"
-      })
+      next(createError(400, 'invalid friend ID'))
       return
     }
 
@@ -856,17 +846,16 @@ exports.acceptFriend = async function (req, res, next) {
 
     // 친구 요청 상태인지 유효성 체크
     if (result.status !== 'wait') {
-      console.log("invalid request (status is not 'wait')")
-      res.status(400).json({"errorMessage":"invalid request"})
+      next(createError(400, 'invalid request'))
       return
     }
 
     await establisFriendRelation(myObjectId, friendObjectId, result.chattingRoomId)
 
     res.status(200).json({"result": "success"})
-  } catch (err) {
-    console.log(err)
-    res.status(500).json({"errorMessage": "server error"})
+  } catch (error) {
+    console.log(error)
+    next(createError(500, 'server error'))
   }
 } 
 
@@ -879,9 +868,7 @@ exports.rejectFriend = async function (req, res, next) {
 
     // 친구 id 유효성 체크
     if (friendUserInfo === null) {
-      res.status(400).json({
-        errorMessage: "invalid friend ID"
-      })
+      next(createError(400, 'invalid friend ID'))
       return
     }
 
@@ -893,9 +880,7 @@ exports.rejectFriend = async function (req, res, next) {
     let result = await userFriendsModel.findOne(filter)
 
     if (result === null) {
-      res.status(400).json({
-        errorMessage: "invalid request"
-      })
+      next(createError(400, 'invalid request'))
       return
     }
 
@@ -911,15 +896,10 @@ exports.rejectFriend = async function (req, res, next) {
       )
     }
 
-    // await userFriendsModel.findOneAndUpdate(
-    //   {_id: result._id}, 
-    //   {status: "reject"}
-    // )
-
     res.status(200).json({"result": "success"})
   } catch (err) {
     console.log(err)
-    res.status(500).json({"errorMessage": "server error"})
+    next(createError(500, 'server error'))
   }
 } 
 
@@ -932,9 +912,7 @@ exports.blockFriend = async function (req, res, next) {
 
     // 친구 id 유효성 체크
     if (friendUserInfo === null) {
-      res.status(400).json({
-        errorMessage: "invalid friend ID"
-      })
+      next(createError(400, 'invalid friend ID'))
       return
     }
 
@@ -946,9 +924,7 @@ exports.blockFriend = async function (req, res, next) {
     let result = await userFriendsModel.findOne(filter)
 
     if (result === null) {
-      res.status(400).json({
-        errorMessage: "invalid request"
-      })
+      next(createError(400, 'invalid request'))
       return
     }
 
@@ -965,19 +941,10 @@ exports.blockFriend = async function (req, res, next) {
       )
     }
 
-    res.status(200).json({"result": "success"})
-  } catch (err) {
-    res.status(500).json({"errorMessage": "server error"})
-  }
-} 
-
-exports.getSendRequestFriendList = async function (req, res, next) {
-  try {
-    let userId = res.locals.userId
-    let SendRequestFriendList = await userFriendRequestModel.findOneByRequestId(userId)
-    res.status(200).json({"SendRequestFriendList": SendRequestFriendList})
-  } catch (err) {
-    res.status(500).json({"result": "fail", "errorMessage": err})
+    res.status(200).json({ result : 'success' })
+  } catch (error) {
+    console.log(error)
+    next(createError(500, 'server error'))
   }
 } 
 
@@ -1031,13 +998,10 @@ exports.getFriendInfoList = async function (req, res, next) {
       "friendAcceptList": friendAcceptInfoList,
       "friendBlockList": friendBlockInfoList
     });
-  } catch (err) {
-    res.status(500).json({
-      errorMessage: "server error"
-    });
-    console.log(err)
+  } catch (error) {
+    console.log(error)
+    next(createError(500, 'server error'))
   }
-  
 }
 
 exports.releaseBlockFriend = async function (req, res, next) {
@@ -1053,9 +1017,7 @@ exports.releaseBlockFriend = async function (req, res, next) {
     let result = await userFriendsModel.findOne(filter)
 
     if (result === null) {
-      res.status(400).json({
-        errorMessage: "invalid request"
-      })
+      next(createError(400, 'invalid request'))
       return
     }
 
@@ -1064,15 +1026,10 @@ exports.releaseBlockFriend = async function (req, res, next) {
       {status: "reject"}
     )
 
-    res.status(200).json({
-      result: 'success'
-    });
-
-  } catch (err) {
-    res.status(500).json({
-      errorMessage: "server error"
-    });
-    console.log(err)
+    res.status(200).json({ result: 'success' });
+  } catch (error) {
+    console.log(error)
+    next(createError(500, 'server error'))
   }
 }
 
@@ -1086,24 +1043,24 @@ exports.reportUser = async function (req, res, next) {
     let content = req.body.reportContent
 
     if (typeof target !== 'string' || target.length > 100) {
-      res.status(400).json({ errorMessage: 'invalid request' })
+      next(createError(400, 'invalid request'))
       return
     }
 
     if (typeof type !== 'string' || target.length > 100) {
-      res.status(400).json({ errorMessage: 'invalid request' })
+      next(createError(400, 'invalid request'))
       return
     }
 
     if (typeof content !== 'string' || content.length > 5000) {
-      res.status(400).json({ errorMessage: '신고 내용이 너무 깁니다.' })
+      next(createError(400, '신고 내용이 너무 깁니다.'))
       return
     }
 
     let reportedUserInfo = await userModel.findOne({_id: reportedUserId}, {nickname: 1})
 
     if (!reportedUserInfo) {
-      res.status(400).json({ errorMessage: '존재하지 않는 회원입니다.' })
+      next(createError(400, '존재하지 않는 회원입니다.'))
       return
     }
 
@@ -1123,7 +1080,7 @@ exports.reportUser = async function (req, res, next) {
     res.status(200).json({ result: 'success' })
   } catch (error) {
     console.log(error)
-    res.status(500).json({ errorMessage: 'server error' })
+    next(createError(500, 'server error'))
   }
 }
 
@@ -1135,9 +1092,7 @@ exports.modifyFriendStatus = async function (req, res, next) {
 
     // 친구 삭제 및 
     if (status !== 'reject' && status !== 'block') {
-      res.status(400).json({
-        errorMessage: "invalid request"
-      })
+      next(createError(400, 'invalid request'))
       return
     }
     
@@ -1149,9 +1104,7 @@ exports.modifyFriendStatus = async function (req, res, next) {
     let friendRelationInfo = await userFriendsModel.findOne(filter)
 
     if (friendRelationInfo === null) {
-      res.status(400).json({
-        errorMessage: "invalid request"
-      })
+      next(createError(400, 'invalid request'))
       return
     }
 
@@ -1160,23 +1113,11 @@ exports.modifyFriendStatus = async function (req, res, next) {
       {status: status}
     )
 
-
-
-    res.status(200).json({
-      friendRelationInfo: friendRelationInfo
-    });
-  } catch (err) {
-    res.status(500).json({
-      errorMessage: "server error"
-    });
-    console.log(err)
+    res.status(200).json({ friendRelationInfo: friendRelationInfo });
+  } catch (error) {
+    console.log(error)
+    next(createError(500, 'server error'))
   }
-}
-
-exports.verifyToken = async function (req, res, next) {
-  res.status(200).json({
-    result: 'ok'
-  });
 }
 
 exports.checkDuplicateId = async function (req, res, next) {
@@ -1192,7 +1133,7 @@ exports.checkDuplicateId = async function (req, res, next) {
 
     res.status(200).json({isCanUse: isCanUse})
   } catch (error) {
-    res.status(500).json({errorMessage: "server error"})
+    next(createError(500, 'server error'))
     console.log(error)
   }
 }
@@ -1210,7 +1151,7 @@ exports.checkDuplicateNickname = async function (req, res, next) {
 
     res.status(200).json({isCanUse: isCanUse})
   } catch (error) {
-    res.status(500).json({errorMessage: "server error"})
+    next(createError(500, 'server error'))
     console.log(error)
   }
 }
@@ -1230,7 +1171,7 @@ exports.getReportList = async function (req, res, next) {
     let userInfo = await userModel.findOne({ _id: myObjectId }, {roleName: 1})
 
     if (!userInfo || userInfo.roleName !== 'admin') {
-      res.status(400).json({ errorMessage: 'invalid request' })
+      next(createError(400, 'invalid request'))
       return
     }
 
@@ -1249,7 +1190,7 @@ exports.getReportList = async function (req, res, next) {
     res.status(200).json({ reportList: reportList })
   } catch (error) {
     console.log(error)
-    res.status(500).json({ errorMessage: 'server error' })
+    next(createError(500, 'server error'))
   }
 }
 
@@ -1261,7 +1202,7 @@ exports.getReportDetail = async function (req, res, next) {
     let userInfo = await userModel.findOne({ _id: myObjectId }, {roleName: 1})
 
     if (!userInfo || userInfo.roleName !== 'admin') {
-      res.status(400).json({ errorMessage: 'invalid request' })
+      next(createError(400, 'invalid request'))
       return
     }
 
@@ -1270,7 +1211,7 @@ exports.getReportDetail = async function (req, res, next) {
     res.status(200).json({ result: 'success', reportInfo: reportInfo })
   } catch (error) {
     console.log(error)
-    res.status(500).json({ errorMessage: 'server error' })
+    next(createError(500, 'server error'))
   }
 }
 
@@ -1283,28 +1224,28 @@ exports.getChattingInfo = async function (req, res, next) {
     let userInfo = await userModel.findOne({ _id: myObjectId}, {roleName: 1})
 
     if (!userInfo || userInfo.roleName !== 'admin') {
-      res.status(400).json({ errorMessage: 'invalid request' })
+      next(createError(400, 'invalid request'))
       return
     }
 
     let userFriendInfo = await userFriendsModel.findOne({ userObjectId: userId, friendObjectId: friendObjectId })
 
     if (!userFriendInfo) {
-      res.status(400).json({ errorMessage: '유효하지 않은 친구관계입니다.' })
+      next(createError(400, '유효하지 않은 친구관계입니다.'))
       return
     }
 
     let chattingInfo = await chattingRoomModel.findOne({ _id: userFriendInfo.chattingRoomId },{ messageRecords: 1 })
 
     if (!chattingInfo) {
-      res.status(400).json({ errorMessage: '채팅 정보가 존재하지 않습니다.'})
+      next(createError(400, '채팅 정보가 존재하지 않습니다.'))
       return
     }
 
     res.status(200).json({ result: 'success', chattingList: chattingInfo.messageRecords})
   } catch (error) {
     console.log(error)
-    res.status(500).json({ errorMessage: 'server error' })
+    next(createError(500, 'server error'))
   }
 }
 
@@ -1317,7 +1258,7 @@ exports.getCommentListForOne = async function (req, res, next) {
     let myUserInfo = await userModel.findOne({_id: myObjectId}, {roleName: 1})
 
     if (!myUserInfo || myUserInfo.roleName !== 'admin') {
-      res.status(401).json({ errorMessage: 'unauthorized' })
+      next(createError(401, '권한 없음'))
       return
     }
 
@@ -1327,7 +1268,7 @@ exports.getCommentListForOne = async function (req, res, next) {
     res.status(200).json({ result: 'success', commentList: commentList })
   } catch (error) {
     console.log(error)
-    res.status(500).json({errorMessage: 'server error'})
+    next(createError(500, 'server error'))
   }
 }
 
@@ -1339,7 +1280,7 @@ exports.getUserActivityStopHistory = async function (req, res, next) {
     let myUserInfo = await userModel.findOne({_id: myObjectId}, {roleName: 1})
 
     if (!myUserInfo || myUserInfo.roleName !== 'admin') {
-      res.status(400).json({ errorMessage: 'invalid request' })
+      next(createError(400, 'invalid request'))
       return
     }
 
@@ -1356,7 +1297,7 @@ exports.getUserActivityStopHistory = async function (req, res, next) {
     res.status(200).json({ result: 'success', activeStopHistoryList: activeStopHistoryList })
   } catch (error) {
     console.log(error)
-    res.status(500).json({ errorMessage: 'server error' })
+    next(createError(500, 'server error'))
   }
 }
 
