@@ -17,5 +17,5 @@ npm start staging
 
 ## 서버실행[상용환경]
 ```
-npm start prod
+pm2 start ecosystem.config.js --env production
 ```

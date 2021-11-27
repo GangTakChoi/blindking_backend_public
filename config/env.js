@@ -4,6 +4,8 @@ const path = require('path')
 let envPath
 let stage = process.argv[2] === undefined ? 'dev' : process.argv[2]
 
+if (process.env.NODE_ENV === 'production') stage = 'prod'
+
 if (stage === 'prod') {
   envPath = path.join(__dirname, '.env.prod')
 } else if (stage === 'staging') {
