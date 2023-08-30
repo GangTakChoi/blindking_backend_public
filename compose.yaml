@@ -1,0 +1,17 @@
+services:
+  app:
+    image: node:18-alpine
+    command: sh -c "npm install && npm start dev"
+    ports:
+      - 3443:3443
+    working_dir: /app
+    volumes:
+      - ./:/app
+  mongodb:
+    image: mongo
+    container_name: mongodb
+    restart: always
+    ports:
+      - 27017:27017
+    volumes:
+      - ./mongodb:/data/db
