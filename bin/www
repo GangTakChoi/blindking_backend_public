@@ -23,9 +23,19 @@ app.set("port", HTTP_PORT);
  * Set https options
  */
 
+// const httpsOptions = {
+//   key: fs.readFileSync("./bin/ssl_key/rootca.key"),
+//   cert: fs.readFileSync("./bin/ssl_key/rootca.crt"),
+// };
+
 const httpsOptions = {
-  key: fs.readFileSync("./bin/ssl_key/rootca.key"),
-  cert: fs.readFileSync("./bin/ssl_key/rootca.crt"),
+  key: fs.readFileSync(
+    "./bin/certification/blindking-api.choikt.com_20230831B3BCF.key.pem"
+  ),
+  cert: fs.readFileSync(
+    "./bin/certification/blindking-api.choikt.com_20230831B3BCF.crt.pem"
+  ),
+  ca: fs.readFileSync("./bin/certification/ca-chain-bundle.pem"),
 };
 
 /**
