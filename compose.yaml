@@ -2,6 +2,7 @@ services:
   app:
     image: node:18-alpine
     command: sh -c "npm install && npm start dev"
+    restart: always
     ports:
       - 3443:3443
     working_dir: /app
