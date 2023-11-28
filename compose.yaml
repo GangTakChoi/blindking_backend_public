@@ -1,13 +1,17 @@
 services:
   app:
     image: node:18-alpine
-    command: sh -c "npm install && npm start prod"
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: sh -c "npm start prod"
     restart: always
     ports:
       - 3443:3443
     working_dir: /app
     volumes:
       - ./:/app
+      - /app/node_modules
   # mongodb:
   #   image: mongo
   #   container_name: mongodb
